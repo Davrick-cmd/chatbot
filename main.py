@@ -3,6 +3,10 @@ from openai import OpenAI
 from langchain_utils import invoke_chain
 st.title("Langchain NL2SQL Chatbot")
 
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
 # Set OpenAI API key from Streamlit secrets
 client = OpenAI(api_key="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")
 
