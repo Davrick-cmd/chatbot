@@ -1,0 +1,15 @@
+<<<<<<< HEAD
+streamlit
+openai
+langchain
+pandas
+pydantic
+python-dotenv
+langchain-community
+langchain_openai
+chromadb
+opentelemetry-api
+opentelemetry-sdk
+protobuf==3.20.3
+=======
+>>>>>>> 67819acd29d6eb6c197ccf540e07e374a9e05527
