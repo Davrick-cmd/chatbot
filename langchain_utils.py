@@ -31,6 +31,7 @@ from langchain_openai import ChatOpenAI
 from table_details import table_chain as select_table
 from prompts import final_prompt, answer_prompt
 
+
 import streamlit as st
 @st.cache_resource
 def get_chain():
@@ -69,11 +70,11 @@ def create_history(messages):
 
 def invoke_chain(question,messages):
     chain = get_chain()
+    print("Done generating chain")
     history = create_history(messages)
-    response = chain.invoke({"question": question,"top_k":3,"messages":history.messages})
+    print(history)
+    response = chain.invoke({"question": question,"top_k":2,"messages":history.messages})
     history.add_user_message(question)
     history.add_ai_message(response)
+    print('respone: ' , response)
     return response
-
-
-

@@ -20,7 +20,6 @@ def get_table_details():
     table_details = ""
     for index, row in table_description.iterrows():
         table_details = table_details + "Table Name:" + row['Table'] + "\n" + "Table Description:" + row['Description'] + "\n\n"
-
     return table_details
 
 

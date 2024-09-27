@@ -1,14 +1,16 @@
 import streamlit as st
 from openai import OpenAI
-from langchain_utils import invoke_chain
-st.title("Langchain NL2SQL Chatbot")
 
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+from langchain_utils import invoke_chain
+
+st.title("DataManagement Chatbot")
+
+# __import__('pysqlite3')
+# import sys
+# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 # Set OpenAI API key from Streamlit secrets
-client = OpenAI(api_key="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")
+client = OpenAI(api_key="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")
 
 # Set a default model
 if "openai_model" not in st.session_state:
@@ -16,7 +18,7 @@ if "openai_model" not in st.session_state:
 
 # Initialize chat history
 if "messages" not in st.session_state:
-    # print("Creating session state")
+    print("Creating session state")
     st.session_state.messages = []
 
 # Display chat messages from history on app rerun

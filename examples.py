@@ -33,8 +33,9 @@ examples = [
     }
 ]
 
+from langchain_community.vectorstores import Chroma
+#from langchain.vectorstores import Chroma
 #from langchain_community.vectorstores import Chroma
-from langchain.vectorstores import Chroma
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from langchain_openai import OpenAIEmbeddings
 import streamlit as st
@@ -48,4 +49,5 @@ def get_example_selector():
         k=2,
         input_keys=["input"],
     )
+    print(example_selector)
     return example_selector
