@@ -44,7 +44,7 @@ def get_chain():
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
         include_tables=tables_to_include  # Limit to specific tables
     )    
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     generate_query = create_sql_query_chain(llm, db,final_prompt) 
     execute_query = QuerySQLDataBaseTool(db=db)
     rephrase_answer = answer_prompt | llm | StrOutputParser()
