@@ -1,3 +1,3 @@
 Table,Description
-SDS_FBNK_ACCOUNT,"Stores information about the bank accounts that exist within the bank, including a unique account number(RECID), CATEGORY (saving, current,etc),transaction dates, CUSTOMER NUMBER,OPENING DATES AND MORE."
-SDS_FBNK_CUSTOMER,"Contains details of each customer of the bank, including RECID(CUSTOMER NUMBER), nameS, type of customer, joining date, birth date and more demographic features.."
+V_ACCOUNT,"Stores information about the bank accounts that exist within the bank, including a unique account number(RECID), CATEGORY (saving, current,etc),transaction dates, CUSTOMER NUMBER,OPENING DATES AND MORE."
+V_CUSTOMER,"Contains details of each customer of the bank, including RECID(CUSTOMER NUMBER), nameS, type of customer, joining date, birth date and more demographic features.."

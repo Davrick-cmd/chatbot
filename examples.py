@@ -1,70 +1,41 @@
+
+# Example data with fixed SQL syntax
 examples = [
     {
-        "input": "List all Retail customers with a current account.",
-        "query": "SELECT c.RECCID, c.GIVEN_NAMES, c.FAMILY_NAME, a.CATEGORY, a.ACCOUNT_TITLE_D_1 FROM SDS_FBNK_CUSTOMER c JOIN SDS_FBNK_ACCOUNT a ON c.RECCID = a.CUSTOMER WHERE c.SEGMENT = '1' AND a.CATEGORY = '1001';"
+        "input": "How many customers do we have in the bank?",
+        "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE RECID IN (SELECT CUSTOMER FROM V_ACCOUNT WHERE CATEGORY <> '1080');"
     },
     {
-        "input": "Get the highest online balance from any customer's account.",
-        "query": "SELECT MAX(a.ONLINE_ACTUAL_BAL) AS MaxBalance FROM SDS_FBNK_ACCOUNT a;"
+        "input": "How many Current accounts?",
+        "query": "SELECT COUNT(DISTINCT RECID) FROM V_ACCOUNT WHERE CATEGORY LIKE '1%';"
     },
     {
-        "input": "Retrieve the details of customers born before 1980.",
-        "query": "SELECT RECCID, GIVEN_NAMES, FAMILY_NAME, DATE_OF_BIRTH FROM SDS_FBNK_CUSTOMER WHERE DATE_OF_BIRTH < '1980-01-01';"
+        "input": "How many accounts transacted yesterday?",
+        "query": """SELECT COUNT(DISTINCT RECID) AS account_count, 
+                    GREATEST(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST) AS Last_transaction_date 
+                    FROM V_ACCOUNT 
+                    WHERE GREATEST(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST) = CAST(GETDATE() - 1 AS DATE);"""
+    },
+    { 
+        "input": "How many customers are in the retail segment?",
+        "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '1';"
     },
     {
-        "input": "List the accounts with a negative working balance.",
-        "query": "SELECT CUSTOMER, ACCOUNT_TITLE_D_1, WORKING_BALANCE FROM SDS_FBNK_ACCOUNT WHERE WORKING_BALANCE < 0;"
+        "input": "How many Loan accounts?",
+        "query": "SELECT COUNT(DISTINCT RECID) FROM V_ACCOUNT WHERE CATEGORY LIKE '3%';"
     },
-    {
-        "input": "Find all customers whose legal ID is a 'NATIONAL.ID'.",
-        "query": "SELECT RECCID, GIVEN_NAMES, FAMILY_NAME, LEGAL_ID FROM SDS_FBNK_CUSTOMER WHERE LEGAL_DOC_NAME = 'NATIONAL.ID';"
-    },
-    {
-        "input": "Get the total number of accounts per currency type.",
-        "query": "SELECT CURRENCY, COUNT(*) AS TotalAccounts FROM SDS_FBNK_ACCOUNT GROUP BY CURRENCY;"
-    },
-    {
-        "input": "Find all customers who registered for internet banking services.",
-        "query": "SELECT RECCID, GIVEN_NAMES, FAMILY_NAME FROM SDS_FBNK_CUSTOMER WHERE INTERNET_BANKING_SERVICE = 'YES';"
-    },
-    {
-        "input": "List the details of the account with the largest debit amount.",
-        "query": "SELECT CUSTOMER, ACCOUNT_TITLE_D_1, AMNT_LAST_DR_CUST FROM SDS_FBNK_ACCOUNT ORDER BY AMNT_LAST_DR_CUST DESC LIMIT 1;"
+    { 
+        "input": "How many agriculture customers do we have?",
+        "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '2';"
     }
 ]
-
-#from langchain_community.vectorstores import Chroma
-# #from langchain_chroma import Chroma
-# from langchain_community.vectorstores import Chroma
-# from langchain_core.example_selectors import SemanticSimilarityExampleSelector
-# from langchain_openai import OpenAIEmbeddings
-# import streamlit as st
-
-# @st.cache_resource
-# def get_example_selector():
-
-#     vector_store = Chroma(
-#         collection_name="collections",  # Ensure a collection name is used
-#         persist_directory="./chroma_store",  # Persist directory to keep Chroma data across sessions
-#         embedding_function=OpenAIEmbeddings()
-#     )
-    
-#     example_selector = SemanticSimilarityExampleSelector.from_examples(
-#         examples,
-#         OpenAIEmbeddings(),
-#         vector_store,
-#         k=2,
-#         input_keys=["input"],
-#     )
-
-#     vector_store.persist()
-
-#     return example_selector
 
 
 import chromadb
 from chromadb.utils import embedding_functions
 import streamlit as st
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Use OpenAIEmbeddings from ChromaDB
 openai_embeddings = embedding_functions.OpenAIEmbeddingFunction(api_key="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")
@@ -75,28 +46,39 @@ import chromadb
 class CustomExampleSelector(BaseExampleSelector):
     def __init__(self, examples):
         self.examples = examples
+        self.vectorizer = TfidfVectorizer()
+
+        # Precompute the TF-IDF vectors for all the example inputs
+        example_inputs = [example['input'] for example in self.examples]
+        self.example_vectors = self.vectorizer.fit_transform(example_inputs)
 
     def add_example(self, example):
-        """Add a new example to the list of examples."""
+        """Add a new example and update the vectorized examples."""
         self.examples.append(example)
+        new_input = example['input']
+        new_vector = self.vectorizer.transform([new_input])
+        self.example_vectors = self.vectorizer.fit_transform([*self.example_vectors.toarray(), new_vector.toarray()[0]])
 
     def select_examples(self, input_variables):
-        """Select examples based on input variables."""
-        new_word = input_variables["input"]
-        new_word_length = len(new_word)
+        """Select examples based on cosine similarity."""
+        input_text = input_variables["input"]
+        top_k = input_variables.get("top_k", 1)  # Get top_k, default to 1 if not provided
 
-        best_match = None
-        smallest_diff = float("inf")
+        # Vectorize the input text
+        input_vector = self.vectorizer.transform([input_text])
 
-        for example in self.examples:
-            current_diff = abs(len(example["input"]) - new_word_length)
+        # Compute cosine similarities between the input and all example inputs
+        similarities = cosine_similarity(input_vector, self.example_vectors).flatten()
 
-            if current_diff < smallest_diff:
-                smallest_diff = current_diff
-                best_match = example
+        # Get the indices of the top_k most similar examples
+        best_match_indices = similarities.argsort()[-top_k:][::-1]  # Sort and get top_k indices
 
-        return [best_match]
+        # Return the top_k matching examples
+        return [self.examples[idx] for idx in best_match_indices]
 
+
+
+# Example usage in get_example_selector:
 @st.cache_resource
 def get_example_selector():
     # Initialize ChromaDB client
@@ -112,7 +94,7 @@ def get_example_selector():
     )
 
     # Insert examples into the collection (if they are not already there)
-    for example in examples:  # Make sure 'examples' is defined in your code
+    for example in examples:
         input_text = example['input']
         query = example['query']
         
