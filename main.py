@@ -1,11 +1,18 @@
 import streamlit as st
+st.set_page_config(layout="wide")
 from openai import OpenAI
 
 from langchain_utils import invoke_chain,generate_download_link
 
 
-st.title("DataManagement AI")
 
+
+st.logo(
+    image = 'img/bklogo.png',
+    link="https://streamlit.io/gallery",
+    icon_image=None,
+    
+)
 
 # Add a title and subtitle in the sidebar
 st.sidebar.title("Chatbot Settings")
@@ -14,7 +21,7 @@ st.sidebar.subheader("Customize your interaction")
 # Model selection dropdown
 model = st.sidebar.selectbox(
     "Select Model:",
-    ["gpt-4o-mini", "gpt-3.5-turbo", "gpt-4"],
+    ["Churn Prediction", "Loan Performance", "Bank overview"],
     index=0
 )
 
@@ -31,6 +38,8 @@ if st.sidebar.button("Download Chat History"):
 # Reset Button
 if st.sidebar.button("Reset Conversation"):
     st.session_state["messages"] = []
+
+st.title("DataManagement AI")
 
 # Set OpenAI API key from Streamlit secrets
 client = OpenAI(api_key="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")
