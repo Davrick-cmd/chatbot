@@ -2,7 +2,7 @@ import streamlit as st
 st.set_page_config(layout="wide")
 from openai import OpenAI
 
-from langchain_utils import invoke_chain,generate_download_link
+from langchain_utils import invoke_chain,extract_download_link
 
 
 
@@ -71,9 +71,13 @@ if prompt := st.chat_input("What is up?"):
         with st.chat_message("assistant",avatar='img/bkofkgl.png'):
             print("Session state:",st.session_state.messages)
             response = invoke_chain(prompt,st.session_state.messages)
+            download_link,respone = extract_download_link(response)
             st.markdown(response)
-                # If the query result DataFrame is valid, provide a download link
-            href = f'<a href="#" >Download Data as CSV File</a>'
-            st.markdown(href, unsafe_allow_html=True)
+            # Dynamically extract the download link from the response
+            if download_link:
+                # Create the href dynamically with the extracted link
+                href = f'<a href="{download_link}" download="query_result.csv">Download Data as CSV File</a>'
+                # Display the download link in the markdown
+                st.markdown(href, unsafe_allow_html=True)
    
     st.session_state.messages.append({"role": "assistant", "content": response})

@@ -31,6 +31,14 @@ examples = [
     { 
         "input": "Give me a list of 5 customer names?",
         "query": "SELECT TOP 5 CUSTOMER_NAME FROM V_CUSTOMER;"
+    },
+    { 
+        "input": "Give me a list of all vip customers?",
+        "query": "SELECT * FROM V_CUSTOMER WHERE TARGET in ('57,'66','91');"
+    },
+    { 
+        "input": "Give a list of all targets to identify different customers",
+        "query": "SELECT DISTINCT TARGET FROM V_CUSTOMER;"
     }
 ]
 

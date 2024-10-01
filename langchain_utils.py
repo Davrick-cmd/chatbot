@@ -4,6 +4,7 @@ import pandas as pd
 import base64
 from io import StringIO
 import ast
+import re
 
 load_dotenv()
 
@@ -50,13 +51,9 @@ def get_chain():
             result=itemgetter("query") | execute_query
         ).assign(
             # Format the result and generate CSV download link
-            formatted_output=lambda result: format_results_to_df(result)
-        ) .assign(
-            # Extract summary, download link, and dataframe without using |
-            summary=lambda result: format_results_to_df(result)[0],  # First element is the summary
-            download_link=lambda result: format_results_to_df(result)[1],  # Second element is the download link
-            df=lambda result: format_results_to_df(result)[2]  # Third element is the DataFrame
-        )
+            Summary=lambda result: format_results_to_df(result)['Summary'],
+            download_link = lambda result: format_results_to_df(result)['Link']
+        ) 
         | rephrase_answer
     )
 
@@ -73,13 +70,13 @@ def format_results_to_df(result):
     if result['result'] != '':
         result_tuples = ast.literal_eval(result['result'])  # Safely evaluate the string to a Python object
         if len(result_tuples) <= 5:
-            return result
+            return  {'Summary':result_tuples, 'Link':"", 'df':""}
         columns = result['query'].split()[3:]  # Extract column names from the query (assuming SELECT TOP N * FROM table)
         
         df = pd.DataFrame.from_records(result_tuples)
         print(df)
     else:
-        return result
+        return {'Summary':result['result'], 'Link':"", 'df':""}
 
     num_rows = len(df)
     num_cols = len(df.columns)
@@ -90,7 +87,7 @@ def format_results_to_df(result):
         download_link = ""
 
     summary = f"We have {num_rows} rows and {num_cols} columns in the result."
-    return summary, download_link, df
+    return {'Summary':summary, 'Link':download_link, 'df':df}
 
 
 def generate_download_link(df):
@@ -117,3 +114,16 @@ def invoke_chain(question, messages):
     history.add_user_message(question)
     history.add_ai_message(response)
     return response
+
+# Function to extract the download link from the response
+def extract_download_link(response):
+    # Regular expression to extract the href value for download link
+    match = re.search(r'(<a href="(data:text/csv;base64,[^"]+)" download="query_result.csv">Download Data as CSV File</a>)', response)
+    
+    if match:
+        # Extract the download link part
+        download_link = match.group(2)
+        # Remove the link portion from the response and keep the rest of the text
+        response_without_link = response.replace(match.group(1), "")
+        return download_link, response_without_link  # Return the link and the part without the link
+    return None, response  # Return None for the link if not found, and the original response

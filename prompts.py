@@ -16,7 +16,7 @@ few_shot_prompt = FewShotChatMessagePromptTemplate(
 
 final_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a MySQL expert. Given an input question, create a syntactically correct SQL query to run. Unless otherwise specificed.\n\nHere is the relevant table info: {table_info}\n\nBelow are a number of examples of questions and their corresponding SQL queries."),
+        ("system", "You are a MSSQL expert. Given an input question, create a syntactically correct SQL (MSSQL) query to run. Unless otherwise specificed.\n\nHere is the relevant table info: {table_info}\n\nBelow are a number of examples of questions and their corresponding SQL queries."),
         few_shot_prompt,
         MessagesPlaceholder(variable_name="messages"),
         ("human", "{input}"),
@@ -33,11 +33,11 @@ final_prompt = ChatPromptTemplate.from_messages(
 # )
 
 answer_prompt = PromptTemplate.from_template(
-    """Given the following user question, corresponding SQL query, and SQL result summary, answer the user question.
+    """Given the following user question, corresponding MSSQL query, and SQL result summary for number of rows and columns return, answer the user question and append the {download_link} in a clicable way at the end of the answer.
 
 Question: {question}
 SQL Query: {query}
-Result Summary: {summary}
+Result Summary: {Summary}
 Download Link: {download_link}
 Answer: """
 )
