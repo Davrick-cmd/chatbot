@@ -33,11 +33,10 @@ final_prompt = ChatPromptTemplate.from_messages(
 # )
 
 answer_prompt = PromptTemplate.from_template(
-    """Given the following user question, corresponding MSSQL query, and SQL result summary for number of rows and columns return, answer the user question and append the {download_link} in a clicable way at the end of the answer.
+    """Given the following user question, corresponding MSSQL query, and SQL result summary, answer the user question as a human handle cases when resuly summary is empty as errors.
 
 Question: {question}
 SQL Query: {query}
 Result Summary: {Summary}
-Download Link: {download_link}
 Answer: """
 )

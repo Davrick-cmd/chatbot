@@ -29,8 +29,8 @@ examples = [
         "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '2';"
     },
     { 
-        "input": "Give me a list of 5 customer names?",
-        "query": "SELECT TOP 5 CUSTOMER_NAME FROM V_CUSTOMER;"
+        "input": "Give me a list of 10 corporate customers names?",
+        "query": "SELECT TOP 5 CUSTOMER_NAME FROM V_CUSTOMER WHERE SEGMENT = '3';"
     },
     { 
         "input": "Give me a list of all vip customers?",

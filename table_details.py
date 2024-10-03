@@ -7,6 +7,7 @@ from pydantic import BaseModel,Field
 
 from langchain_openai import ChatOpenAI
 
+
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 from typing import List
 
@@ -35,6 +36,7 @@ def get_tables(tables: List[Table]) -> List[str]:
 
 # table_names = "\n".join(db.get_usable_table_names())
 table_details = get_table_details()
+
 table_details_prompt = f"""Return the names of ALL the SQL tables that MIGHT be relevant to the user question. \
 The tables are:
 

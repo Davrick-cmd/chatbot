@@ -1,3 +1,4 @@
+import streamlit as st
 import os
 from dotenv import load_dotenv
 import pandas as pd
@@ -18,6 +19,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2")
 LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
 
+
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain.chains import create_sql_query_chain
 from langchain_openai import ChatOpenAI
@@ -25,10 +27,13 @@ from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain_community.chat_message_histories import ChatMessageHistory
 from operator import itemgetter
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough,Runnable
 from table_details import table_chain as select_table
 from prompts import final_prompt, answer_prompt
 import streamlit as st
+import json
+
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
 
 @st.cache_resource
 def get_chain():
@@ -40,10 +45,9 @@ def get_chain():
         include_tables=tables_to_include, view_support=True
     )    
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     generate_query = create_sql_query_chain(llm, db, final_prompt) 
     execute_query = QuerySQLDataBaseTool(db=db, verbose=False)
-    rephrase_answer = answer_prompt | llm | StrOutputParser()
 
     chain = (
         RunnablePassthrough.assign(table_names_to_use=select_table) |
@@ -53,19 +57,28 @@ def get_chain():
             # Format the result and generate CSV download link
             Summary=lambda result: format_results_to_df(result)['Summary'],
             download_link = lambda result: format_results_to_df(result)['Link']
-        ) 
-        | rephrase_answer
+        ) | custom_format
+        
     )
 
     return chain
+
+
+def custom_format(result):
+    # Perform custom formatting here
+    link = result['download_link']
+
+    answer_chain = (answer_prompt | llm | StrOutputParser())
+    answer = answer_chain.invoke(result)
+    
+    return answer ,link
+
 
 
 def format_results_to_df(result):
     """
     Format the SQL query result into a DataFrame and generate a download link for CSV.
     """
-
-    print("Debug: Received result:", result) 
     # The result is in string format; convert it to a list of tuples
     if result['result'] != '':
         result_tuples = ast.literal_eval(result['result'])  # Safely evaluate the string to a Python object
@@ -74,7 +87,6 @@ def format_results_to_df(result):
         columns = result['query'].split()[3:]  # Extract column names from the query (assuming SELECT TOP N * FROM table)
         
         df = pd.DataFrame.from_records(result_tuples)
-        print(df)
     else:
         return {'Summary':result['result'], 'Link':"", 'df':""}
 
@@ -83,8 +95,11 @@ def format_results_to_df(result):
 
     if not df.empty:
         download_link = generate_download_link(df)
+            
     else:
         download_link = ""
+    
+    
 
     summary = f"We have {num_rows} rows and {num_cols} columns in the result."
     return {'Summary':summary, 'Link':download_link, 'df':df}
@@ -115,15 +130,16 @@ def invoke_chain(question, messages):
     history.add_ai_message(response)
     return response
 
-# Function to extract the download link from the response
-def extract_download_link(response):
-    # Regular expression to extract the href value for download link
-    match = re.search(r'(<a href="(data:text/csv;base64,[^"]+)" download="query_result.csv">Download Data as CSV File</a>)', response)
+# # Function to extract the download link from the response
+# def extract_download_link(response):
+#     # Regular expression to extract the href value for download link
+#     match = re.search(r'(<a href="(data:text/csv;base64,[^"]+)" download="query_result.csv">Download Data as CSV File</a>)', response)
     
-    if match:
-        # Extract the download link part
-        download_link = match.group(2)
-        # Remove the link portion from the response and keep the rest of the text
-        response_without_link = response.replace(match.group(1), "")
-        return download_link, response_without_link  # Return the link and the part without the link
-    return None, response  # Return None for the link if not found, and the original response
+#     if match:
+#         # Extract the download link part
+#         download_link = match.group(2)
+#         # Remove the link portion from the response and keep the rest of the text
+#         response_without_link = response.replace(match.group(1), "")
+#         return download_link, response_without_link  # Return the link and the part without the link
+#     return None, response  # Return None for the link if not found, and the original response
+
