@@ -134,16 +134,14 @@ def create_history(messages):
     return history
 
 def invoke_chain(question, messages):
-
-    input_check = {"input": itemgetter("question")} | input_prompt | llm | StrOutputParser() | str
-    answer = input_check.invoke({"question":question})
+    history = create_history(messages)
+    input_check = input_prompt | llm | StrOutputParser() | str
+    answer = input_check.invoke({"question":question,"messages": history.messages})
 
     if answer != '1':
-        print('INPUT',input_check)
         return answer 
     
     chain = get_chain()
-    history = create_history(messages)
     response = chain.invoke({"question": question, "top_k": 3, "messages": history.messages})
     history.add_user_message(question)
     history.add_ai_message(response)
