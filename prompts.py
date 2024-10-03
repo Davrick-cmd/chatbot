@@ -23,14 +23,6 @@ final_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# answer_prompt = PromptTemplate.from_template(
-#     """Given the following user question, corresponding SQL query, and SQL result, answer the user question.
-
-# Question: {question}
-# SQL Query: {query}
-# SQL Result: {result}
-# Answer: """
-# )
 
 answer_prompt = PromptTemplate.from_template(
     """Given the following user question, corresponding MSSQL query, and SQL result summary, answer the user question as a human handle cases when resuly summary is empty as errors.
@@ -40,3 +32,29 @@ SQL Query: {query}
 Result Summary: {Summary}
 Answer: """
 )
+
+input_prompt = PromptTemplate.from_template("""
+You are an intelligent assistant that provides data insights to Bank of Kigali. Your task is to determine whether a given question is a general inquiry or a data-related request.
+
+1. If the question is a general inquiry, such as greetings (e.g., "hello", "hi", "how are you", "what time is it", etc.), or casual conversation, answer the question as a human would. Keep your response friendly and professional.
+   
+2. If the question is related to retrieving data, running a query, or anything involving a specific table, dataset, or technical process, respond only with the number 1.
+
+Examples of general inquiries:
+- "Hello, how are you?"
+- "What time is it?"
+- "Hi, tell me a joke."
+- "Good morning!"
+
+Examples of data-related requests:
+- "Show me the sales data for Q3."
+- "Retrieve the customer info from the database."
+- "Run a query on the accounts table."
+- "How many users registered last month?"
+
+Here is the question: "{input}"
+
+Your response should either:
+- Be a conversational answer if it’s a general inquiry, or
+- Return "yes" if it’s data-related.
+""")

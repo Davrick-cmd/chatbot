@@ -29,7 +29,7 @@ from operator import itemgetter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough,Runnable
 from table_details import table_chain as select_table
-from prompts import final_prompt, answer_prompt
+from prompts import final_prompt, answer_prompt,input_prompt
 import streamlit as st
 import json
 
@@ -43,7 +43,9 @@ def get_chain():
     db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
         include_tables=tables_to_include, view_support=True
-    )    
+    )
+
+
 
     # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     generate_query = create_sql_query_chain(llm, db, final_prompt) 
@@ -64,8 +66,15 @@ def get_chain():
     return chain
 
 
+
+
 def custom_format(result):
     # Perform custom formatting here
+
+    if isinstance(result, str):
+        # If the result is already a string, just return it as the answer
+        return result, None  # No download link in this case
+    
     link = result['download_link']
 
     answer_chain = (answer_prompt | llm | StrOutputParser())
@@ -79,6 +88,8 @@ def format_results_to_df(result):
     """
     Format the SQL query result into a DataFrame and generate a download link for CSV.
     """
+
+    print(result,type(result))
     # The result is in string format; convert it to a list of tuples
     if result['result'] != '':
         result_tuples = ast.literal_eval(result['result'])  # Safely evaluate the string to a Python object
@@ -123,6 +134,14 @@ def create_history(messages):
     return history
 
 def invoke_chain(question, messages):
+
+    input_check = {"input": itemgetter("question")} | input_prompt | llm | StrOutputParser() | str
+    answer = input_check.invoke({"question":question})
+
+    if answer != '1':
+        print('INPUT',input_check)
+        return answer 
+    
     chain = get_chain()
     history = create_history(messages)
     response = chain.invoke({"question": question, "top_k": 3, "messages": history.messages})

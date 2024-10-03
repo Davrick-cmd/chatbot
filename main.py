@@ -70,13 +70,17 @@ if prompt := st.chat_input("What is up?"):
         with st.chat_message("assistant",avatar='img/bkofkgl.png'):
             print("Session state:",st.session_state.messages)
             response = invoke_chain(prompt,st.session_state.messages)
-            st.markdown(response[0])
-            # Dynamically extract the download link from the response
-            print('The download link is:', response[1])
-            if response[1]!='':
-                # Create the href dynamically with the extracted link
-                href = response[1]
-                # Display the download link in the markdown
-                st.markdown(href, unsafe_allow_html=True)
+
+            if isinstance(response,str):
+                st.markdown(response)
+
+            else:
+                st.markdown(response[0])
+                # Dynamically extract the download link from the response
+                if response[1]!='':
+                    # Create the href dynamically with the extracted link
+                    href = response[1]
+                    # Display the download link in the markdown
+                    st.markdown(href, unsafe_allow_html=True)
    
-    st.session_state.messages.append({"role": "assistant", "content": response[0]})
+    st.session_state.messages.append({"role": "assistant", "content": response if isinstance(response, str) else response[0]})
