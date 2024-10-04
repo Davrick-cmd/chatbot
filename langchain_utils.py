@@ -67,9 +67,8 @@ def get_chain():
             
             # Call the LLM to explain the error or suggest a correction
             # llm_response = call_llm_to_handle_error(error_message)
-            return error_message
+            return [error_message]
             
-
 
     chain = (
         RunnablePassthrough.assign(table_names_to_use=select_table) |
