@@ -1,5 +1,9 @@
 import streamlit as st
-st.set_page_config(layout="wide")
+
+
+st.set_page_config(layout="wide",
+                    page_title = "DataManagement AI",
+                    page_icon = "img/bkofkgl.png")
 from openai import OpenAI
 
 from langchain_utils import invoke_chain

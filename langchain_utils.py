@@ -3,9 +3,10 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 import base64
-from io import StringIO
+
 import ast
-import re
+
+import pyodbc
 
 load_dotenv()
 
@@ -27,7 +28,7 @@ from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain_community.chat_message_histories import ChatMessageHistory
 from operator import itemgetter
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough,Runnable
+from langchain_core.runnables import RunnablePassthrough,RunnableLambda
 from table_details import table_chain as select_table
 from prompts import final_prompt, answer_prompt,input_prompt
 import streamlit as st
@@ -51,10 +52,29 @@ def get_chain():
     generate_query = create_sql_query_chain(llm, db, final_prompt) 
     execute_query = QuerySQLDataBaseTool(db=db, verbose=False)
 
+    def execute_query_with_handling(query):
+        """Try executing the query, and if there's an error, call the LLM for further instructions."""
+        try:
+            # Execute the query
+            
+            result = execute_query(query)
+            print(result)
+            return result
+        except Exception as e:
+            # Catch any errors from the query execution and log them
+            error_message = str(e)
+            print(f"Error executing query: {error_message}")
+            
+            # Call the LLM to explain the error or suggest a correction
+            # llm_response = call_llm_to_handle_error(error_message)
+            return error_message
+            
+
+
     chain = (
         RunnablePassthrough.assign(table_names_to_use=select_table) |
         RunnablePassthrough.assign(query=generate_query).assign(
-            result=itemgetter("query") | execute_query
+            result=itemgetter("query")| RunnableLambda(execute_query_with_handling)
         ).assign(
             # Format the result and generate CSV download link
             Summary=lambda result: format_results_to_df(result)['Summary'],
@@ -138,6 +158,7 @@ def invoke_chain(question, messages):
     input_check = input_prompt | llm | StrOutputParser() | str
     answer = input_check.invoke({"question":question,"messages": history.messages})
 
+    # Check if the question is related to data or it is a general question
     if answer != '1':
         return answer 
     
@@ -147,16 +168,6 @@ def invoke_chain(question, messages):
     history.add_ai_message(response)
     return response
 
-# # Function to extract the download link from the response
-# def extract_download_link(response):
-#     # Regular expression to extract the href value for download link
-#     match = re.search(r'(<a href="(data:text/csv;base64,[^"]+)" download="query_result.csv">Download Data as CSV File</a>)', response)
-    
-#     if match:
-#         # Extract the download link part
-#         download_link = match.group(2)
-#         # Remove the link portion from the response and keep the rest of the text
-#         response_without_link = response.replace(match.group(1), "")
-#         return download_link, response_without_link  # Return the link and the part without the link
-#     return None, response  # Return None for the link if not found, and the original response
+
+
 
