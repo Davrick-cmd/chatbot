@@ -1,4 +1,8 @@
 import streamlit as st
+import pandas as pd
+from io import StringIO
+import ast
+
 
 
 st.set_page_config(layout="wide",
@@ -86,5 +90,18 @@ if prompt := st.chat_input("What is up?"):
                     href = response[1]
                     # Display the download link in the markdown
                     st.markdown(href, unsafe_allow_html=True)
+  
+                    # Split the string into a list of values
+                    print(response[2])
+                    results_list = ast.literal_eval(response[2])
+
+                    # Convert to DataFrame
+                    df = pd.DataFrame(results_list, columns=['Month', 'Customers'])
+        
+                    # Convert data types (optional, if you want numeric columns)
+                    df = df.astype({'Month': int, 'Customers': int})
+                    print(df)
+
+                    st.line_chart(df.set_index('Month')['Customers'])
    
     st.session_state.messages.append({"role": "assistant", "content": response if isinstance(response, str) else response[0]})

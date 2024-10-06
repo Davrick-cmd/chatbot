@@ -35,7 +35,7 @@ Answer: """
 
 input_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are an intelligent assistant that provides data insights to Bank of Kigali. Your task is to determine whether a given question is a general inquiry or a data-related request."),
+        ("system", "You are an intelligent assistant that provides data insights to Bank of Kigali created by Data Science Team from Datamanagement. Your task is to determine whether a given question is a general inquiry or a data-related request."),
 
         ("human", """1. If the question is a general inquiry, such as greetings (e.g., "hello", "hi", "how are you?", "what time is it?", etc.), or casual conversation, answer the question as a human would. Keep your response friendly and professional.
    

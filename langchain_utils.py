@@ -32,6 +32,7 @@ from langchain_core.runnables import RunnablePassthrough,RunnableLambda
 from table_details import table_chain as select_table
 from prompts import final_prompt, answer_prompt,input_prompt
 import streamlit as st
+from sqlalchemy import create_engine, text
 import json
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
@@ -47,33 +48,14 @@ def get_chain():
     )
 
 
-
     # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     generate_query = create_sql_query_chain(llm, db, final_prompt) 
-    execute_query = QuerySQLDataBaseTool(db=db, verbose=False)
+    execute_query = QuerySQLDataBaseTool(db=db)
 
-    # def execute_query_with_handling(query):
-    #     """Try executing the query, and if there's an error, call the LLM for further instructions."""
-    #     try:
-    #         # Log the query to check if it's correctly formed
-    #         print(f"Executing query: {query}")
-            
-    #         # Execute the query
-    #         result = execute_query(query)
-            
-    #         print(result)
-    #         return result
-    #     except pyodbc.ProgrammingError as pe:
-    #         error_message = f"There was an issue with the SQL query: {pe}"
-    #         print(f"Error executing query: {error_message}")
-    #         traceback.print_exc()
-    #         return [error_message]
-    #     except Exception as e:
-    #         error_message = f"An unexpected error occurred: {e}"
-    #         print(f"Error executing query: {error_message}")
-    #         traceback.print_exc()
-    #         return [error_message]
-        
+    engine = create_engine(
+        f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server"
+    )
+
     def execute_query_with_handling(query,history,max_retries=3):
         """
         Execute the query with error handling. If an error occurs, invoke the LLM to 
@@ -92,20 +74,24 @@ def get_chain():
             try:
                 # Log the query and execute
                 print(f"Attempt {attempt + 1}: Executing query: {query}")
-                result = execute_query(query)
-                print(f"Attempt {attempt + 1}: Results:{result}")
-
-                                # Ensure the result is a list
+                result= execute_query(query)
+                with engine.connect() as connection:
+                    result = connection.execute(text(query))
+                    results_list = result.fetchall()
+                    # Get column names
+                    column_names = result.keys()  # This gives you a list of column names
+                print("Column names sqlalchemy: ", column_names)
+                # Ensure the result is a list
                 if isinstance(result, dict) and 'result' in result:
                     results_list = result['result'] if isinstance(result['result'], list) else [result['result']]
                 else:
-                    results_list = result if isinstance(result, list) else [result]
+                    results_list = results_list if isinstance(results_list, list) else [results_list]
 
                 print(f"Attempt {attempt + 1}: Results_list: {results_list}")
 
                 # If the query is successful, return the result
-                if not (isinstance(result, str) and 'Error' in result):
-                    return result
+                if not (isinstance(results_list, str) and 'Error' in result):
+                    return results_list
 
                 # If error occurs, record the error message in history and log it
                 error_message = f"SQL query error: {result}"
@@ -166,13 +152,13 @@ def get_chain():
         ).assign(
             # Format the result and generate CSV download link
             Summary=lambda result: format_results_to_df(result)['Summary'],
-            download_link = lambda result: format_results_to_df(result)['Link']
+            download_link = lambda result: format_results_to_df(result)['Link'],
+            data = lambda result: format_results_to_df(result)['df']
         ) | custom_format
         
     )
 
     return chain
-
 
 
 
@@ -188,7 +174,7 @@ def custom_format(result):
     answer_chain = (answer_prompt | llm | StrOutputParser())
     answer = answer_chain.invoke(result)
     
-    return answer ,link
+    return answer ,link,str(result['data'])
 
 
 def format_results_to_df(result):
@@ -197,7 +183,8 @@ def format_results_to_df(result):
 
     if result['result']:
         try:
-            result_tuples = ast.literal_eval(result['result'])
+            result_tuples = result['result']
+            print("parsing",result_tuples,len(result_tuples))
         except Exception as e:
             return {'Summary': f"Failed to parse result: {e}", 'Link': "", 'df': ""}
         
@@ -207,16 +194,18 @@ def format_results_to_df(result):
         # More robust column extraction
         #columns = [col.strip() for col in result['query'].split('FROM')[0].replace('SELECT', '').split(',')]
         df = pd.DataFrame.from_records(result_tuples)  # Use extracted columns
+        num_rows = len(df)
+        num_cols = len(df.columns)
+
+        download_link = generate_download_link(df) if not df.empty else ""
+    
+        summary = f"We have {num_rows} rows and {num_cols} columns in the result."
+        print(summary)
+        return {'Summary': summary, 'Link': download_link, 'df': result_tuples}
     else:
         return {'Summary': result['result'], 'Link': "", 'df': ""}
 
-    num_rows = len(df)
-    num_cols = len(df.columns)
 
-    download_link = generate_download_link(df) if not df.empty else ""
-    
-    summary = f"We have {num_rows} rows and {num_cols} columns in the result."
-    return {'Summary': summary, 'Link': download_link, 'df': df}
 
 
 
