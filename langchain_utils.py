@@ -39,11 +39,11 @@ llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
 @st.cache_resource
 def get_chain():
     print("Creating chain")
-    tables_to_include = ['V_ACCOUNT', 'V_CUSTOMER']
+    tables_to_include = ['T24_ACCOUNTS', 'T24_CUSTOMERS_ALL']
 
     db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
-        include_tables=tables_to_include, view_support=True
+        include_tables=tables_to_include
     )
 
 

@@ -1,47 +1,91 @@
 
+# # Example data with fixed SQL syntax
+# examples = [
+#     {
+#         "input": "How many customers do we have in the bank?",
+#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE RECID IN (SELECT CUSTOMER FROM V_ACCOUNT WHERE CATEGORY <> '1080');"
+#     },
+#     {
+#         "input": "How many Current accounts?",
+#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_ACCOUNT WHERE CATEGORY LIKE '1%';"
+#     },
+#     {
+#         "input": "How many accounts transacted yesterday?",
+#         "query": """SELECT COUNT(DISTINCT RECID) AS account_count, 
+#                     GREATEST(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST) AS Last_transaction_date 
+#                     FROM V_ACCOUNT 
+#                     WHERE GREATEST(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST) = CAST(GETDATE() - 1 AS DATE);"""
+#     },
+#     { 
+#         "input": "How many customers are in the retail segment?",
+#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '1';"
+#     },
+#     {
+#         "input": "How many Loan accounts?",
+#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_ACCOUNT WHERE CATEGORY LIKE '3%';"
+#     },
+#     { 
+#         "input": "How many agriculture customers do we have?",
+#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '2';"
+#     },
+#     { 
+#         "input": "Give me a list of 10 corporate customers names?",
+#         "query": "SELECT TOP 5 CUSTOMER_NAME FROM V_CUSTOMER WHERE SEGMENT = '3';"
+#     },
+#     { 
+#         "input": "Give me a list of all vip customers?",
+#         "query": "SELECT * FROM V_CUSTOMER WHERE TARGET in ('57,'66','91');"
+#     },
+#     { 
+#         "input": "Give a list of all targets to identify different customers",
+#         "query": "SELECT DISTINCT TARGET FROM V_CUSTOMER;"
+#     }
+# ]
+
+
+
 # Example data with fixed SQL syntax
 examples = [
     {
         "input": "How many customers do we have in the bank?",
-        "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE RECID IN (SELECT CUSTOMER FROM V_ACCOUNT WHERE CATEGORY <> '1080');"
+        "query": "SELECT COUNT(DISTINCT CUSTOMER_NO) FROM T24_CUSTOMERS_ALL WHERE RECID IN (SELECT CUSTOMER_NO FROM T24_ACCOUNTS WHERE CATEGORY <> '1080');"
     },
     {
         "input": "How many Current accounts?",
-        "query": "SELECT COUNT(DISTINCT RECID) FROM V_ACCOUNT WHERE CATEGORY LIKE '1%';"
+        "query": "SELECT COUNT(DISTINCT RECID) FROM T24_ACCOUNTS WHERE CATEGORY LIKE '1%';"
     },
     {
         "input": "How many accounts transacted yesterday?",
-        "query": """SELECT COUNT(DISTINCT RECID) AS account_count, 
+        "query": """SELECT COUNT(DISTINCT CUSTOMER_NO) AS account_count, 
                     GREATEST(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST) AS Last_transaction_date 
-                    FROM V_ACCOUNT 
+                    FROM T24_ACCOUNTS 
                     WHERE GREATEST(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST) = CAST(GETDATE() - 1 AS DATE);"""
     },
     { 
         "input": "How many customers are in the retail segment?",
-        "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '1';"
+        "query": "SELECT COUNT(DISTINCT CUSTOMER_NO) FROM T24_CUSTOMERS_ALL WHERE SEGMENT = '1';"
     },
     {
         "input": "How many Loan accounts?",
-        "query": "SELECT COUNT(DISTINCT RECID) FROM V_ACCOUNT WHERE CATEGORY LIKE '3%';"
+        "query": "SELECT COUNT(DISTINCT ACCOUNT_NUMBER) FROM T24_ACCOUNTS WHERE CATEGORY LIKE '3%';"
     },
     { 
         "input": "How many agriculture customers do we have?",
-        "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '2';"
+        "query": "SELECT COUNT(DISTINCT CUSTOMER_NO) FROM T24_CUSTOMERS_ALL WHERE SEGMENT = '2';"
     },
     { 
         "input": "Give me a list of 10 corporate customers names?",
-        "query": "SELECT TOP 5 CUSTOMER_NAME FROM V_CUSTOMER WHERE SEGMENT = '3';"
+        "query": "SELECT TOP 5 SHORT_NAME FROM T24_CUSTOMERs_ALL WHERE SEGMENT = '3';"
     },
     { 
         "input": "Give me a list of all vip customers?",
-        "query": "SELECT * FROM V_CUSTOMER WHERE TARGET in ('57,'66','91');"
+        "query": "SELECT * FROM T24_CUSTOMERS_ALL WHERE TARGET in ('57,'66','91');"
     },
     { 
         "input": "Give a list of all targets to identify different customers",
-        "query": "SELECT DISTINCT TARGET FROM V_CUSTOMER;"
+        "query": "SELECT DISTINCT TARGET FROM T24_CUSTOMERS_ALL;"
     }
 ]
-
 
 import chromadb
 from chromadb.utils import embedding_functions
@@ -95,6 +139,7 @@ class CustomExampleSelector(BaseExampleSelector):
 def get_example_selector():
     # Initialize ChromaDB client
     client = chromadb.Client()
+    client.delete_collection
 
     # Specify the persistence directory
     persist_directory = "./chroma_store"
@@ -104,6 +149,7 @@ def get_example_selector():
         name="collections",
         embedding_function=openai_embeddings  # Ensure you have defined openai_embeddings
     )
+
 
     # Insert examples into the collection (if they are not already there)
     for example in examples:
