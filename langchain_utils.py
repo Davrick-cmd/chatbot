@@ -3,6 +3,9 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 import base64
+import matplotlib.pyplot as plt
+import seaborn as sns
+import altair as alt
 
 import ast
 
@@ -32,6 +35,7 @@ from langchain_core.runnables import RunnablePassthrough,RunnableLambda
 from table_details import table_chain as select_table
 from prompts import final_prompt, answer_prompt,input_prompt
 import streamlit as st
+from sqlalchemy import create_engine, text
 import json
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
@@ -47,33 +51,14 @@ def get_chain():
     )
 
 
-
     # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     generate_query = create_sql_query_chain(llm, db, final_prompt) 
-    execute_query = QuerySQLDataBaseTool(db=db, verbose=False)
+    execute_query = QuerySQLDataBaseTool(db=db)
 
-    # def execute_query_with_handling(query):
-    #     """Try executing the query, and if there's an error, call the LLM for further instructions."""
-    #     try:
-    #         # Log the query to check if it's correctly formed
-    #         print(f"Executing query: {query}")
-            
-    #         # Execute the query
-    #         result = execute_query(query)
-            
-    #         print(result)
-    #         return result
-    #     except pyodbc.ProgrammingError as pe:
-    #         error_message = f"There was an issue with the SQL query: {pe}"
-    #         print(f"Error executing query: {error_message}")
-    #         traceback.print_exc()
-    #         return [error_message]
-    #     except Exception as e:
-    #         error_message = f"An unexpected error occurred: {e}"
-    #         print(f"Error executing query: {error_message}")
-    #         traceback.print_exc()
-    #         return [error_message]
-        
+    engine = create_engine(
+        f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server"
+    )
+
     def execute_query_with_handling(query,history,max_retries=3):
         """
         Execute the query with error handling. If an error occurs, invoke the LLM to 
@@ -92,20 +77,24 @@ def get_chain():
             try:
                 # Log the query and execute
                 print(f"Attempt {attempt + 1}: Executing query: {query}")
-                result = execute_query(query)
-                print(f"Attempt {attempt + 1}: Results:{result}")
-
-                                # Ensure the result is a list
+                # result= execute_query(query)
+                with engine.connect() as connection:
+                    result = connection.execute(text(query))
+                    results_list = result.fetchall()
+                    # Get column names
+                    column_names = result.keys()  # This gives you a list of column names
+                print("Column names sqlalchemy: ", column_names)
+                # Ensure the result is a list
                 if isinstance(result, dict) and 'result' in result:
                     results_list = result['result'] if isinstance(result['result'], list) else [result['result']]
                 else:
-                    results_list = result if isinstance(result, list) else [result]
+                    results_list = results_list if isinstance(results_list, list) else [results_list]
 
                 print(f"Attempt {attempt + 1}: Results_list: {results_list}")
 
                 # If the query is successful, return the result
-                if not (isinstance(result, str) and 'Error' in result):
-                    return result
+                if not (isinstance(results_list, str) and 'Error' in result):
+                    return {'data':results_list,'Column_Names':column_names}
 
                 # If error occurs, record the error message in history and log it
                 error_message = f"SQL query error: {result}"
@@ -127,7 +116,7 @@ def get_chain():
                 # Max retries reached, return the last error message
                 return {'Summary': f"Query failed after {max_retries} attempts: {error_message}", 'Link': "", 'df': ""}
 
-        return result
+        return {'data':result,'Column_Names':column_names}
     
     def get_corrected_query_llm(query, history):
         """
@@ -166,7 +155,9 @@ def get_chain():
         ).assign(
             # Format the result and generate CSV download link
             Summary=lambda result: format_results_to_df(result)['Summary'],
-            download_link = lambda result: format_results_to_df(result)['Link']
+            download_link = lambda result: format_results_to_df(result)['Link'],
+            data = lambda result: format_results_to_df(result)['data_list'],
+            data_column = lambda result: format_results_to_df(result)['Column_names']
         ) | custom_format
         
     )
@@ -174,49 +165,83 @@ def get_chain():
     return chain
 
 
-
-
 def custom_format(result):
     # Perform custom formatting here
 
     if isinstance(result, str):
         # If the result is already a string, just return it as the answer
-        return result, None  # No download link in this case
-    
-    link = result['download_link']
+        return result, None, None,None,None  # No download link in this case
 
-    answer_chain = (answer_prompt | llm | StrOutputParser())
-    answer = answer_chain.invoke(result)
-    
-    return answer ,link
+    link = result['download_link']
+    data_column = list(result['data_column'])
+
+    answer_chain = (answer_prompt | llm)
+    response = answer_chain.invoke(result)
+
+    # Clean the response content to extract JSON
+    cleaned_content = response.content.strip("```json\n").strip("\n```")  # Remove code block formatting
+
+    # Attempt to load the cleaned response content as JSON
+    try:
+        response_content = json.loads(cleaned_content)  # Decode the cleaned string
+        print("Response Content:", response_content)
+
+        response_str = response_content.get("Answer", "No answer provided.")  # Default message if key is missing
+        chart_type = response_content.get("chart_type", "none")  # Default to "none" if key is missing
+        column_names = response_content.get('Column_names',"")
+
+        print("Chart Type:", chart_type)
+
+        
+
+        return response_str, link, str(result['data']),chart_type,str(column_names),str(data_column) # Add chart_type to the return values
+
+    except json.JSONDecodeError as e:
+        print("Error decoding JSON:", e)
+        return "Error processing response", link, str(result['data']),"none",""
+    except Exception as e:
+        print("An unexpected error occurred:", e)
+        return "Error processing response", link, str(result['data']),"none",""
+
 
 
 def format_results_to_df(result):
-    if 'Error' in result['result']:
-        return {'Summary': f"Query failed: {result['result']}", 'Link': "", 'df': ""}
+    """
+    Combines robust error handling and result parsing.
+    
+    Args:
+    - result: The query result to process.
 
-    if result['result']:
-        try:
-            result_tuples = ast.literal_eval(result['result'])
-        except Exception as e:
-            return {'Summary': f"Failed to parse result: {e}", 'Link': "", 'df': ""}
+    Returns:
+    - A dictionary with 'Summary', 'Link' to the download CSV, and 'df' as the DataFrame or parsed tuples.
+    """
+    if not result or 'Error' in result.get('result', {}).get('data', ''):
+        return {'Summary': f"Query failed: {result['result']['data']}" if 'Error' in result.get('result', {}).get('data', '') else "No data returned", 
+                'Link': "", 'data_list': ""}
+
+    try:
+        # Extract result tuples
+        result_tuples = result['result']['data']
+        # Generate a summary of rows and columns
+
+        print("Parsing result:", result_tuples, len(result_tuples))
+        column_names = result['result']['Column_Names']
         
         if len(result_tuples) <= 5:
-            return {'Summary': result_tuples, 'Link': "", 'df': ""}
+            return {'Summary': result_tuples, 'Link': "", 'data_list': result_tuples,'Column_names':column_names}
+
+        # Convert result tuples into DataFrame
+        df = pd.DataFrame.from_records(result_tuples,columns=column_names)
+        download_link = generate_download_link(df) if not df.empty else ""
+        print('LENGTH',len(result_tuples))
+        # Generate a summary of rows and columns
+        summary = f"We have {len(df)} rows and {len(df.columns)} columns."
+        print(summary)
         
-        # More robust column extraction
-        #columns = [col.strip() for col in result['query'].split('FROM')[0].replace('SELECT', '').split(',')]
-        df = pd.DataFrame.from_records(result_tuples)  # Use extracted columns
-    else:
-        return {'Summary': result['result'], 'Link': "", 'df': ""}
+        return {'Summary': summary, 'Link': download_link, 'data_list': result_tuples,'Column_names':column_names}
 
-    num_rows = len(df)
-    num_cols = len(df.columns)
-
-    download_link = generate_download_link(df) if not df.empty else ""
-    
-    summary = f"We have {num_rows} rows and {num_cols} columns in the result."
-    return {'Summary': summary, 'Link': download_link, 'df': df}
+    except Exception as e:
+        return {'Summary': f"Failed to parse result: {e}", 'Link': "", 'data_list': "",'Column_names':""}
 
 
 
@@ -255,3 +280,52 @@ def invoke_chain(question, messages):
 
 
 
+def create_chart(chart_type, data,column_names,data_columns):
+    """
+    Create a chart in Streamlit based on the chart type and data provided.
+    
+    Args:
+        chart_type (str): The type of chart to create.
+        data (list): The data to be used for the chart.
+    """
+    
+    # Convert data to a DataFrame if it's in list format
+    if isinstance(data, list):
+        df = pd.DataFrame(data,columns=data_columns)
+        df = df[data_columns]
+        df.reset_index(drop=True, inplace=True) 
+        print(df)
+    else:
+        st.error("Data format is not supported for chart creation.")
+        return
+
+    # Check the chart type and create the appropriate chart
+    if chart_type == "bar":
+        # Create a bar chart using Altair
+        chart = alt.Chart(df).mark_bar().encode(
+            x=alt.X(df.columns[0], title=column_names[0]),  # First column as x-axis
+            y=alt.Y(df.columns[1], title=column_names[1])   # Second column as y-axis
+        )
+        st.altair_chart(chart, use_container_width=True)
+    elif chart_type == "line":
+        st.line_chart(df)  # Streamlit function for line chart
+    elif chart_type == "pie":
+        # Create a pie chart using Matplotlib
+        plt.figure(figsize=(6, 6))
+        plt.pie(df.iloc[:, 1], labels=df.iloc[:, 0], autopct='%1.1f%%')
+        plt.title("Pie Chart")
+        st.pyplot(plt)  # Streamlit function to display Matplotlib figures
+    elif chart_type == "scatter":
+        st.subheader("Scatter Plot")
+        st.write(sns.scatterplot(data=df, x=df.columns[0], y=df.columns[1]))
+        st.pyplot(plt)  # Display the figure
+    elif chart_type == "histogram":
+        st.subheader("Histogram")
+        st.write(sns.histplot(df, bins=30))
+        st.pyplot(plt)  # Display the figure
+    elif chart_type == "box":
+        st.subheader("Box Plot")
+        st.write(sns.boxplot(data=df))
+        st.pyplot(plt)  # Display the figure
+    else:
+        st.warning("Chart type not recognized. No chart will be displayed.")
