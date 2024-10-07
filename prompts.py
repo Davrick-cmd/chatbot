@@ -66,19 +66,23 @@ Examples of data-related requests:
 
 answer_prompt = PromptTemplate.from_template(
     """
-    Given the following user question, corresponding MSSQL query, and SQL result summary, 
-    answer the user question as a human. Handle cases when the result summary is empty or contains errors. 
-    Also, determine whether a chart is needed (e.g., bar, pie, or none) based on the user's question and the result summary. 
+    Given the following user question, corresponding MSSQL query, SQL result summary, and the list of column names, 
+    answer the user question in a professional, human-like manner. Handle cases when the result summary is empty or contains errors.
+    Additionally, determine whether a chart is needed (e.g., bar, pie, line, area, scatter, histogram, box, funnel) based on the user's question and the result summary. 
+    If a chart is needed, return the columns to be used for the chart in a list format.
+    
     Return the result in JSON format as follows:
     
     {{
-        "Answer": "<Provide the human-readable answer>",
-        "chart_type": "<Determine if a chart is needed, and if so, specify the type (e.g., bar, pie, line,area,scatter,histogram, box,funnel)>"
+        "Answer": "<Provide a human-readable and professional answer>",
+        "chart_type": "<Determine if a chart is needed, and if so, specify the type (e.g., bar, pie, line, area, scatter, histogram, box, funnel)>",
+        "Column_names": "<List of columns to use if a chart is needed>"
     }}
     
     Question: {question}
     SQL Query: {query}
     Result Summary: {Summary}
+    Column Names: {data_column}
     """
 )
 

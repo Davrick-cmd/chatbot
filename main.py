@@ -86,7 +86,7 @@ if prompt := st.chat_input("What is up?"):
             else:
                 st.markdown(response[0])
                 # Dynamically extract the download link from the response
-                if response[1]!='':
+                if response[1]!='' or response[2] !='':
                     # Create the href dynamically with the extracted link
                     href = response[1]
                     # Display the download link in the markdown
@@ -94,10 +94,12 @@ if prompt := st.chat_input("What is up?"):
   
                     # Split the string into a list of values
                     results_list = ast.literal_eval(response[2])
+                    column_names = ast.literal_eval(response[4])
+                    data_columns = ast.literal_eval(response[5])
 
                     # Convert to DataFrame
                     df = pd.DataFrame(results_list)
-                    create_chart(response[3],results_list)
+                    create_chart(response[3],results_list,column_names,data_columns)
    
     st.session_state.messages.append({"role": "assistant", "content": response if isinstance(response, str) else response[0]})
 
