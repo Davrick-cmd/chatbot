@@ -24,14 +24,14 @@ final_prompt = ChatPromptTemplate.from_messages(
 )
 
 
-answer_prompt = PromptTemplate.from_template(
-    """Given the following user question, corresponding MSSQL query, and SQL result summary, answer the user question as a human handle cases when resuly summary is empty as errors.
+# answer_prompt = PromptTemplate.from_template(
+#     """Given the following user question, corresponding MSSQL query, and SQL result summary, answer the user question as a human, handle cases when result summary is empty or errors.
 
-Question: {question}
-SQL Query: {query}
-Result Summary: {Summary}
-Answer: """
-)
+# Question: {question}
+# SQL Query: {query}
+# Result Summary: {Summary}
+# Answer: """
+# )
 
 input_prompt = ChatPromptTemplate.from_messages(
     [
@@ -63,4 +63,22 @@ Examples of data-related requests:
     ]
 )
 
+
+answer_prompt = PromptTemplate.from_template(
+    """
+    Given the following user question, corresponding MSSQL query, and SQL result summary, 
+    answer the user question as a human. Handle cases when the result summary is empty or contains errors. 
+    Also, determine whether a chart is needed (e.g., bar, pie, or none) based on the user's question and the result summary. 
+    Return the result in JSON format as follows:
+    
+    {{
+        "Answer": "<Provide the human-readable answer>",
+        "chart_type": "<Determine if a chart is needed, and if so, specify the type (e.g., bar, pie, line,area,scatter,histogram, box,funnel)>"
+    }}
+    
+    Question: {question}
+    SQL Query: {query}
+    Result Summary: {Summary}
+    """
+)
 

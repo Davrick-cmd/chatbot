@@ -5,12 +5,13 @@ import ast
 
 
 
+
 st.set_page_config(layout="wide",
                     page_title = "DataManagement AI",
                     page_icon = "img/bkofkgl.png")
 from openai import OpenAI
 
-from langchain_utils import invoke_chain
+from langchain_utils import invoke_chain,create_chart
 
 
 
@@ -92,16 +93,12 @@ if prompt := st.chat_input("What is up?"):
                     st.markdown(href, unsafe_allow_html=True)
   
                     # Split the string into a list of values
-                    print(response[2])
                     results_list = ast.literal_eval(response[2])
 
                     # Convert to DataFrame
-                    df = pd.DataFrame(results_list, columns=['Month', 'Customers'])
-        
-                    # Convert data types (optional, if you want numeric columns)
-                    df = df.astype({'Month': int, 'Customers': int})
-                    print(df)
-
-                    st.line_chart(df.set_index('Month')['Customers'])
+                    df = pd.DataFrame(results_list)
+                    create_chart(response[3],results_list)
    
     st.session_state.messages.append({"role": "assistant", "content": response if isinstance(response, str) else response[0]})
+
+

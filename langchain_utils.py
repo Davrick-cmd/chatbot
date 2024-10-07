@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 import base64
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 import ast
 
@@ -153,7 +155,7 @@ def get_chain():
             # Format the result and generate CSV download link
             Summary=lambda result: format_results_to_df(result)['Summary'],
             download_link = lambda result: format_results_to_df(result)['Link'],
-            data = lambda result: format_results_to_df(result)['df']
+            data = lambda result: format_results_to_df(result)['data_list']
         ) | custom_format
         
     )
@@ -161,20 +163,46 @@ def get_chain():
     return chain
 
 
-
 def custom_format(result):
     # Perform custom formatting here
 
     if isinstance(result, str):
         # If the result is already a string, just return it as the answer
-        return result, None  # No download link in this case
-    
+        return result, None, None  # No download link in this case
+
     link = result['download_link']
 
-    answer_chain = (answer_prompt | llm | StrOutputParser())
-    answer = answer_chain.invoke(result)
-    
-    return answer ,link,str(result['data'])
+    answer_chain = (answer_prompt | llm)
+    response = answer_chain.invoke(result)
+    print("Initial Response:", response)
+
+    # Print the raw content for debugging
+    print("Raw Response Content:", response.content)
+
+    # Clean the response content to extract JSON
+    cleaned_content = response.content.strip("```json\n").strip("\n```")  # Remove code block formatting
+    print("Cleaned Response Content:", cleaned_content)  # For debugging
+
+    # Attempt to load the cleaned response content as JSON
+    try:
+        response_content = json.loads(cleaned_content)  # Decode the cleaned string
+        print("Response Content:", response_content)
+
+        response_str = response_content.get("Answer", "No answer provided.")  # Default message if key is missing
+        chart_type = response_content.get("chart_type", "none")  # Default to "none" if key is missing
+
+        print("Response Content String:", response_str)
+        print("Chart Type:", chart_type)
+
+        return response_str, link, str(result['data']),chart_type # Add chart_type to the return values
+
+    except json.JSONDecodeError as e:
+        print("Error decoding JSON:", e)
+        return "Error processing response", link, str(result['data']),"none"
+    except Exception as e:
+        print("An unexpected error occurred:", e)
+        return "Error processing response", link, str(result['data']),"none"
+
 
 
 def format_results_to_df(result):
@@ -189,7 +217,7 @@ def format_results_to_df(result):
     """
     if not result or 'Error' in result.get('result', {}).get('data', ''):
         return {'Summary': f"Query failed: {result['result']['data']}" if 'Error' in result.get('result', {}).get('data', '') else "No data returned", 
-                'Link': "", 'df': ""}
+                'Link': "", 'data_list': ""}
 
     try:
         # Extract result tuples
@@ -199,7 +227,7 @@ def format_results_to_df(result):
         print("Parsing result:", result_tuples, len(result_tuples))
         
         if len(result_tuples) <= 5:
-            return {'Summary': result_tuples, 'Link': "", 'df': ""}
+            return {'Summary': result_tuples, 'Link': "", 'data_list': ""}
         
         column_names = result['result']['Column_Names']
 
@@ -211,13 +239,10 @@ def format_results_to_df(result):
         summary = f"We have {len(df)} rows and {len(df.columns)} columns."
         print(summary)
         
-        return {'Summary': summary, 'Link': download_link, 'df': result_tuples}
+        return {'Summary': summary, 'Link': download_link, 'data_list': result_tuples}
 
     except Exception as e:
-        return {'Summary': f"Failed to parse result: {e}", 'Link': "", 'df': ""}
-
-
-
+        return {'Summary': f"Failed to parse result: {e}", 'Link': "", 'data_list': ""}
 
 
 
@@ -256,3 +281,44 @@ def invoke_chain(question, messages):
 
 
 
+def create_chart(chart_type, data):
+    """
+    Create a chart in Streamlit based on the chart type and data provided.
+    
+    Args:
+        chart_type (str): The type of chart to create.
+        data (list): The data to be used for the chart.
+    """
+    
+    # Convert data to a DataFrame if it's in list format
+    if isinstance(data, list):
+        df = pd.DataFrame(data)
+    else:
+        st.error("Data format is not supported for chart creation.")
+        return
+
+    # Check the chart type and create the appropriate chart
+    if chart_type == "bar":
+        st.bar_chart(df)  # Streamlit function for bar chart
+    elif chart_type == "line":
+        st.line_chart(df)  # Streamlit function for line chart
+    elif chart_type == "pie":
+        # Create a pie chart using Matplotlib
+        plt.figure(figsize=(6, 6))
+        plt.pie(df.iloc[:, 1], labels=df.iloc[:, 0], autopct='%1.1f%%')
+        plt.title("Pie Chart")
+        st.pyplot(plt)  # Streamlit function to display Matplotlib figures
+    elif chart_type == "scatter":
+        st.subheader("Scatter Plot")
+        st.write(sns.scatterplot(data=df, x=df.columns[0], y=df.columns[1]))
+        st.pyplot(plt)  # Display the figure
+    elif chart_type == "histogram":
+        st.subheader("Histogram")
+        st.write(sns.histplot(df, bins=30))
+        st.pyplot(plt)  # Display the figure
+    elif chart_type == "box":
+        st.subheader("Box Plot")
+        st.write(sns.boxplot(data=df))
+        st.pyplot(plt)  # Display the figure
+    else:
+        st.warning("Chart type not recognized. No chart will be displayed.")
