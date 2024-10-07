@@ -74,7 +74,7 @@ def get_chain():
             try:
                 # Log the query and execute
                 print(f"Attempt {attempt + 1}: Executing query: {query}")
-                result= execute_query(query)
+                # result= execute_query(query)
                 with engine.connect() as connection:
                     result = connection.execute(text(query))
                     results_list = result.fetchall()
@@ -91,7 +91,7 @@ def get_chain():
 
                 # If the query is successful, return the result
                 if not (isinstance(results_list, str) and 'Error' in result):
-                    return results_list
+                    return {'data':results_list,'Column_Names':column_names}
 
                 # If error occurs, record the error message in history and log it
                 error_message = f"SQL query error: {result}"
@@ -113,7 +113,7 @@ def get_chain():
                 # Max retries reached, return the last error message
                 return {'Summary': f"Query failed after {max_retries} attempts: {error_message}", 'Link': "", 'df': ""}
 
-        return result
+        return {'data':result,'Column_Names':column_names}
     
     def get_corrected_query_llm(query, history):
         """
@@ -178,32 +178,44 @@ def custom_format(result):
 
 
 def format_results_to_df(result):
-    if 'Error' in result['result']:
-        return {'Summary': f"Query failed: {result['result']}", 'Link': "", 'df': ""}
+    """
+    Combines robust error handling and result parsing.
+    
+    Args:
+    - result: The query result to process.
 
-    if result['result']:
-        try:
-            result_tuples = result['result']
-            print("parsing",result_tuples,len(result_tuples))
-        except Exception as e:
-            return {'Summary': f"Failed to parse result: {e}", 'Link': "", 'df': ""}
+    Returns:
+    - A dictionary with 'Summary', 'Link' to the download CSV, and 'df' as the DataFrame or parsed tuples.
+    """
+    if not result or 'Error' in result.get('result', {}).get('data', ''):
+        return {'Summary': f"Query failed: {result['result']['data']}" if 'Error' in result.get('result', {}).get('data', '') else "No data returned", 
+                'Link': "", 'df': ""}
+
+    try:
+        # Extract result tuples
+        result_tuples = result['result']['data']
+        # Generate a summary of rows and columns
+
+        print("Parsing result:", result_tuples, len(result_tuples))
         
         if len(result_tuples) <= 5:
             return {'Summary': result_tuples, 'Link': "", 'df': ""}
         
-        # More robust column extraction
-        #columns = [col.strip() for col in result['query'].split('FROM')[0].replace('SELECT', '').split(',')]
-        df = pd.DataFrame.from_records(result_tuples)  # Use extracted columns
-        num_rows = len(df)
-        num_cols = len(df.columns)
+        column_names = result['result']['Column_Names']
 
+        # Convert result tuples into DataFrame
+        df = pd.DataFrame.from_records(result_tuples,columns=column_names)
         download_link = generate_download_link(df) if not df.empty else ""
-    
-        summary = f"We have {num_rows} rows and {num_cols} columns in the result."
+        print('LENGTH',len(result_tuples))
+        # Generate a summary of rows and columns
+        summary = f"We have {len(df)} rows and {len(df.columns)} columns."
         print(summary)
+        
         return {'Summary': summary, 'Link': download_link, 'df': result_tuples}
-    else:
-        return {'Summary': result['result'], 'Link': "", 'df': ""}
+
+    except Exception as e:
+        return {'Summary': f"Failed to parse result: {e}", 'Link': "", 'df': ""}
+
 
 
 
