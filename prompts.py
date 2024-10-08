@@ -25,7 +25,13 @@ definitions = {
     "Inactive Account": "A current account that hasn't transacted in the last 90 days (transaction date < current date - 90 days) but has transacted at least once in the last 180 days (transaction date >= current date - 180 days), or a savings account that hasn't transacted in the last 720 days (transaction date < current date - 720 days).",
     "Dormant Account": "A current account that hasn't transacted in the last 180 days but has had at least one transaction in the last 360 days. (current date - 90 < = transaction date >= current date - 180 days)",
     "Dom Closed Account": "A current account that hasn't transacted in the last 360 days (1 year) but has had at least one transaction in the last 1800 days (5 years).",
-    "Unclaimed Account":  "A current account that hasn't transacted at least oncee in the last 1800 days"
+    "Unclaimed Account":  "A current account that hasn't transacted at least oncee in the last 1800 days",
+    "Active Customer":"A customer with at least one active account.",
+    "Inactive Customer":"A customer with no active account but has at least one inactive account",
+    "Dormant Customer": "A customer with no active or inactive account but has at least one dormant account",
+    "Dom closed Customer": "A customer with no active or inactive or dormant account but has at least one dom close account",
+    "Unclaimed Customer": "A customer with no other accounts other than unclaimed account",
+    "Churn customer": "A churn customer is a dom closed customer or unclaimed customer"
 }
 
 # Convert the definitions dictionary to a string format

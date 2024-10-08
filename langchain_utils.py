@@ -38,7 +38,7 @@ import streamlit as st
 from sqlalchemy import create_engine, text
 import json
 
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+llm = ChatOpenAI(model="gpt-4", temperature=0.2)
 
 @st.cache_resource
 def get_chain():
