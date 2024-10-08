@@ -14,24 +14,41 @@ few_shot_prompt = FewShotChatMessagePromptTemplate(
     input_variables=["input","top_k"],
 )
 
+# Define a dictionary for definitions
+definitions = {
+    "Customer": "A customer is considered to have an account with a category starting with 1 or 6 and should not have category 1080.",
+    "Current Account": "Accounts that have a category starting with '1' and should not have category 1080, typically used for day-to-day transactions.",
+    "Loan Account": "Accounts that have a category starting with '3', typically used for loans.",
+    "VIP Customer": "Customers who have a target of 57, 66, or 91, indicating high-value status.",
+    "Active Account": "A current account that has had at least one transaction in the last 90 days, or a savings account that has had at least one transaction in the last 720 days."
+}
+
+# Convert the definitions dictionary to a string format
+definitions_string = "\n".join([f"- {key}: {value}" for key, value in definitions.items()])
+
+# Construct the final prompt using the entire dictionary as a string
 final_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a MSSQL expert. Given an input question, create a syntactically correct SQL (MSSQL) query to run. Unless otherwise specificed.\n\nHere is the relevant table info: {table_info}\n\nBelow are a number of examples of questions and their corresponding SQL queries."),
+        ("system", 
+         f"""You are a MSSQL expert. Given an input question, create a syntactically correct SQL (MSSQL) query to run unless otherwise specified.
+
+         Here is the relevant table info: {{table_info}}
+
+         Below are a number of examples of questions and their corresponding SQL queries. These examples are correct and should be trusted. 
+         Additionally, the SQL comments included with each example should be taken into account when designing the MS SQL query.
+
+         Definitions:
+         {definitions_string}
+
+         IMPORTANT: When generating SQL queries, make sure to apply the definitions provided above. For example, if a question asks for the number of retail customers, remember that a customer is defined as having an account with a category starting with 1 or 6 and not having category 1080.
+         """
+        ),
         few_shot_prompt,
         MessagesPlaceholder(variable_name="messages"),
         ("human", "{input}"),
     ]
 )
 
-
-# answer_prompt = PromptTemplate.from_template(
-#     """Given the following user question, corresponding MSSQL query, and SQL result summary, answer the user question as a human, handle cases when result summary is empty or errors.
-
-# Question: {question}
-# SQL Query: {query}
-# Result Summary: {Summary}
-# Answer: """
-# )
 
 input_prompt = ChatPromptTemplate.from_messages(
     [
