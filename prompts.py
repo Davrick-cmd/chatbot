@@ -16,11 +16,16 @@ few_shot_prompt = FewShotChatMessagePromptTemplate(
 
 # Define a dictionary for definitions
 definitions = {
-    "Customer": "A customer is considered to have an account with a category starting with 1 or 6 and should not have category 1080.",
+    "Customer": "A customer is considered to have an account with a category starting with 1 or 6 and should not have category 1080 or 1031.",
     "Current Account": "Accounts that have a category starting with '1' and should not have category 1080, typically used for day-to-day transactions.",
     "Loan Account": "Accounts that have a category starting with '3', typically used for loans.",
     "VIP Customer": "Customers who have a target of 57, 66, or 91, indicating high-value status.",
-    "Active Account": "A current account that has had at least one transaction in the last 90 days, or a savings account that has had at least one transaction in the last 720 days."
+    "Transaction Date": "The most recent debit or credit by the bank or the customer (Maximum(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST))",
+    "Active Account": "A current account that has had at least one transaction (transaction date >= current date - 90 days) in the last 90 days, or a savings account that has had at least one transaction (transaction date >= current date - 720 days) in the last 720 days.",
+    "Inactive Account": "A current account that hasn't transacted in the last 90 days (transaction date < current date - 90 days) but has transacted at least once in the last 180 days (transaction date >= current date - 180 days), or a savings account that hasn't transacted in the last 720 days (transaction date < current date - 720 days).",
+    "Dormant Account": "A current account that hasn't transacted in the last 180 days but has had at least one transaction in the last 360 days. (current date - 90 < = transaction date >= current date - 180 days)",
+    "Dom Closed Account": "A current account that hasn't transacted in the last 360 days (1 year) but has had at least one transaction in the last 1800 days (5 years).",
+    "Unclaimed Account":  "A current account that hasn't transacted at least oncee in the last 1800 days"
 }
 
 # Convert the definitions dictionary to a string format
@@ -82,7 +87,7 @@ Examples of data-related requests:
 
 
 answer_prompt = PromptTemplate.from_template(
-    """
+   """
     Given the following user question, corresponding MSSQL query, SQL result summary, and the list of column names, 
     answer the user question in a professional, human-like manner. Handle cases when the result summary is empty or contains errors.
     Additionally, determine whether a chart is needed (e.g., bar, pie, line, area, scatter, histogram, box, funnel) based on the user's question and the result summary. 
