@@ -16,22 +16,22 @@ few_shot_prompt = FewShotChatMessagePromptTemplate(
 
 # Define a dictionary for definitions
 definitions = {
-    "Customer": "A customer is considered to have an account with a category starting with 1 or 6 and should not have category 1080 or 1031.",
-    "Current Account": "Accounts that have a category starting with '1' and should not have category 1080, typically used for day-to-day transactions.",
-    "Loan Account": "Accounts that have a category starting with '3', typically used for loans.",
-    "VIP Customer": "Customers who have a target of 57, 66, or 91, indicating high-value status.",
-    "Transaction Date": "The most recent debit or credit by the bank or the customer (Maximum(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST))",
-    "Active Account": "A current account that has had at least one transaction (transaction date >= current date - 90 days) in the last 90 days, or a savings account that has had at least one transaction (transaction date >= current date - 720 days) in the last 720 days.",
-    "Inactive Account": "A current account that hasn't transacted in the last 90 days (transaction date < current date - 90 days) but has transacted at least once in the last 180 days (transaction date >= current date - 180 days), or a savings account that hasn't transacted in the last 720 days (transaction date < current date - 720 days).",
-    "Dormant Account": "A current account that hasn't transacted in the last 180 days but has had at least one transaction in the last 360 days. (current date - 90 < = transaction date >= current date - 180 days)",
-    "Dom Closed Account": "A current account that hasn't transacted in the last 360 days (1 year) but has had at least one transaction in the last 1800 days (5 years).",
-    "Unclaimed Account":  "A current account that hasn't transacted at least oncee in the last 1800 days",
-    "Active Customer":"A customer with at least one active account.",
-    "Inactive Customer":"A customer with no active account but has at least one inactive account",
-    "Dormant Customer": "A customer with no active or inactive account but has at least one dormant account",
-    "Dom closed Customer": "A customer with no active or inactive or dormant account but has at least one dom close account",
-    "Unclaimed Customer": "A customer with no other accounts other than unclaimed account",
-    "Churn customer": "A churn customer is a dom closed customer or unclaimed customer"
+    "Customer": "A customer is defined as an entity holding an account categorized with a starting digit of  '1' or '6', excluding any account within categories '1080' or '1031'.",
+    "Current Account": "Accounts categorized with a starting digit '1', excluding category '1080' or '1031'. Predominantly used for routine transactions.",
+    "Loan Account": "Accounts categorized with a starting digit '3', specifically associated with loan purposes.",
+    "VIP Customer": "A high-value status customer identified by target codes: '57', '66', or '91'.",
+    "Transaction Date": "The date of the most recent debit or credit by the bank or customer, computed as the maximum of DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, and DATE_LAST_CR_CUST. Defaults to the opening date if no transactions exist.",
+    "Active Account": "A current account (non-1080/1031) with at least one transaction in the last 90 days, or a savings account with at least one transaction in the last 720 days.",
+    "Inactive Account": "A current account (non-1080/1031) without transactions for over 90 days but with transaction history within the last 180 days, or a savings account with no transactions in the last 720 days.",
+    "Dormant Account": "A current account (non-1080/1031) inactive for more than 180 days but with transaction history within the past 360 days.",
+    "Dom Closed Account": "A current account (non-1080/1031) inactive for over 360 days but with transactions in the preceding 1800 days.",
+    "Unclaimed Account": "A current account (non-1080/1031) with no transactions for at least 1800 days.",
+    "Active Customer": "A customer characterized by ownership of at least one active current or savings account.",
+    "Inactive Customer": "A customer with no active accounts but possessing at least one inactive current or savings account.",
+    "Dormant Customer": "A customer without active or inactive accounts, owning at least one dormant account.",
+    "Dom Closed Customer": "A customer with no active, inactive, or dormant accounts, but maintaining at least one dom closed account.",
+    "Unclaimed Customer": "A customer who has unclaimed current accounts only.",
+    "Churn Customer": "A customer who has only Dom Closed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment."
 }
 
 # Convert the definitions dictionary to a string format
@@ -113,4 +113,18 @@ answer_prompt = PromptTemplate.from_template(
     Column Names: {data_column}
     """
 )
+check_query_prompt = ChatPromptTemplate.from_messages([
+    ("system", """You are an expert SQL assistant tasked with validating SQL queries against business definitions and requirements. Please assess the given query to ensure it matches the specified definitions and the original question being asked. Relevant table details are available here: {{table_info}}"""),
 
+    ("human", "When generating or evaluating any SQL query, strictly apply the definitions provided. For clarity, if a question seeks the number of retail customers, the definition specifies a customer as having an account with a category starting with 1 or 6, excluding category 1080."),
+
+    ("human", "Below are the official business definitions that must be strictly followed:"),
+    ("human", f"{definitions_string}"),  # Include business definitions dynamically
+
+    ("human", "The original inquiry was as follows: {question}"),  # Explicitly include the original question
+
+    ("human", "The SQL query that was generated based on the above question is as follows:"),
+    ("human", "{query}"),  # Present the generated query
+
+    ("human", "Your task is to review the SQL query. Please do one of the following:\n- Return the original query if it fully complies with the given definitions,\n- Provide a corrected SQL query that fully aligns with the definitions. Do not include any explanations or extra information in your response.")
+])
