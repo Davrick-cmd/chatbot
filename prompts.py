@@ -14,24 +14,52 @@ few_shot_prompt = FewShotChatMessagePromptTemplate(
     input_variables=["input","top_k"],
 )
 
+# Define a dictionary for definitions
+definitions = {
+    "Customer": "A customer is considered to have an account with a category starting with 1 or 6 and should not have category 1080 or 1031.",
+    "Current Account": "Accounts that have a category starting with '1' and should not have category 1080, typically used for day-to-day transactions.",
+    "Loan Account": "Accounts that have a category starting with '3', typically used for loans.",
+    "VIP Customer": "Customers who have a target of 57, 66, or 91, indicating high-value status.",
+    "Transaction Date": "The most recent debit or credit by the bank or the customer (Maximum(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST))",
+    "Active Account": "A current account that has had at least one transaction (transaction date >= current date - 90 days) in the last 90 days, or a savings account that has had at least one transaction (transaction date >= current date - 720 days) in the last 720 days.",
+    "Inactive Account": "A current account that hasn't transacted in the last 90 days (transaction date < current date - 90 days) but has transacted at least once in the last 180 days (transaction date >= current date - 180 days), or a savings account that hasn't transacted in the last 720 days (transaction date < current date - 720 days).",
+    "Dormant Account": "A current account that hasn't transacted in the last 180 days but has had at least one transaction in the last 360 days. (current date - 90 < = transaction date >= current date - 180 days)",
+    "Dom Closed Account": "A current account that hasn't transacted in the last 360 days (1 year) but has had at least one transaction in the last 1800 days (5 years).",
+    "Unclaimed Account":  "A current account that hasn't transacted at least oncee in the last 1800 days",
+    "Active Customer":"A customer with at least one active account.",
+    "Inactive Customer":"A customer with no active account but has at least one inactive account",
+    "Dormant Customer": "A customer with no active or inactive account but has at least one dormant account",
+    "Dom closed Customer": "A customer with no active or inactive or dormant account but has at least one dom close account",
+    "Unclaimed Customer": "A customer with no other accounts other than unclaimed account",
+    "Churn customer": "A churn customer is a dom closed customer or unclaimed customer"
+}
+
+# Convert the definitions dictionary to a string format
+definitions_string = "\n".join([f"- {key}: {value}" for key, value in definitions.items()])
+
+# Construct the final prompt using the entire dictionary as a string
 final_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a MSSQL expert. Given an input question, create a syntactically correct SQL (MSSQL) query to run. Unless otherwise specificed.\n\nHere is the relevant table info: {table_info}\n\nBelow are a number of examples of questions and their corresponding SQL queries."),
+        ("system", 
+         f"""You are a MSSQL expert. Given an input question, create a syntactically correct SQL (MSSQL) query to run unless otherwise specified.
+
+         Here is the relevant table info: {{table_info}}
+
+         Below are a number of examples of questions and their corresponding SQL queries. These examples are correct and should be trusted. 
+         Additionally, the SQL comments included with each example should be taken into account when designing the MS SQL query.
+
+         Definitions:
+         {definitions_string}
+
+         IMPORTANT: When generating SQL queries, make sure to apply the definitions provided above. For example, if a question asks for the number of retail customers, remember that a customer is defined as having an account with a category starting with 1 or 6 and not having category 1080.
+         """
+        ),
         few_shot_prompt,
         MessagesPlaceholder(variable_name="messages"),
         ("human", "{input}"),
     ]
 )
 
-
-# answer_prompt = PromptTemplate.from_template(
-#     """Given the following user question, corresponding MSSQL query, and SQL result summary, answer the user question as a human, handle cases when result summary is empty or errors.
-
-# Question: {question}
-# SQL Query: {query}
-# Result Summary: {Summary}
-# Answer: """
-# )
 
 input_prompt = ChatPromptTemplate.from_messages(
     [
@@ -65,7 +93,7 @@ Examples of data-related requests:
 
 
 answer_prompt = PromptTemplate.from_template(
-    """
+   """
     Given the following user question, corresponding MSSQL query, SQL result summary, and the list of column names, 
     answer the user question in a professional, human-like manner. Handle cases when the result summary is empty or contains errors.
     Additionally, determine whether a chart is needed (e.g., bar, pie, line, area, scatter, histogram, box, funnel) based on the user's question and the result summary. 

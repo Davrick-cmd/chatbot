@@ -38,7 +38,7 @@ import streamlit as st
 from sqlalchemy import create_engine, text
 import json
 
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 
 @st.cache_resource
 def get_chain():
@@ -192,8 +192,6 @@ def custom_format(result):
 
         print("Chart Type:", chart_type)
 
-        
-
         return response_str, link, str(result['data']),chart_type,str(column_names),str(data_column) # Add chart_type to the return values
 
     except json.JSONDecodeError as e:
@@ -328,4 +326,4 @@ def create_chart(chart_type, data,column_names,data_columns):
         st.write(sns.boxplot(data=df))
         st.pyplot(plt)  # Display the figure
     else:
-        st.warning("Chart type not recognized. No chart will be displayed.")
+        pass
