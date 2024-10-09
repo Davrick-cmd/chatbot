@@ -57,7 +57,7 @@ if "Link" not in st.session_state:
 
 # Initialize chat history
 if "messages" not in st.session_state:
-    print("Creating session state")
+    print("Creating session state\n")
     st.session_state.messages = []
 
 # Display chat messages from history on app rerun
@@ -77,7 +77,7 @@ if prompt := st.chat_input("What is up?"):
     # Display assistant response in chat message container
     with st.spinner("Generating response..."):
         with st.chat_message("assistant",avatar='img/bkofkgl.png'):
-            print("Session state:",st.session_state.messages)
+            print(f"Session state: {st.session_state.messages}\n")
             response = invoke_chain(prompt,st.session_state.messages)
 
             if isinstance(response,str):
@@ -99,7 +99,10 @@ if prompt := st.chat_input("What is up?"):
 
                     # Convert to DataFrame
                     df = pd.DataFrame(results_list)
-                    create_chart(response[3],results_list,column_names,data_columns)
+                    if response[3] == "none":
+                        print("No chart needed, End of Chain\n")
+                    else:
+                        create_chart(response[3],results_list,column_names,data_columns)
    
     st.session_state.messages.append({"role": "assistant", "content": response if isinstance(response, str) else response[0]})
 

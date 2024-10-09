@@ -33,7 +33,7 @@ from operator import itemgetter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough,RunnableLambda
 from table_details import table_chain as select_table
-from prompts import final_prompt, answer_prompt,input_prompt
+from prompts import final_prompt, answer_prompt,input_prompt,check_query_prompt
 import streamlit as st
 from sqlalchemy import create_engine, text
 import json
@@ -42,7 +42,7 @@ llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 
 @st.cache_resource
 def get_chain():
-    print("Creating chain")
+    print("Creating chain\n")
     tables_to_include = ['T24_ACCOUNTS', 'T24_CUSTOMERS_ALL']
 
     db = SQLDatabase.from_uri(
@@ -72,25 +72,25 @@ def get_chain():
         Returns:
         - result (dict): Result of the query execution or error message after max retries.
         """
-        query  = query.replace("`", "").strip()
+        query = query.replace("`", "").replace("sql", "").strip()
+
         for attempt in range(max_retries):
             try:
                 # Log the query and execute
-                print(f"Attempt {attempt + 1}: Executing query: {query}")
+                print(f"Attempt {attempt + 1}: Executing query: {query}\n")
                 # result= execute_query(query)
                 with engine.connect() as connection:
                     result = connection.execute(text(query))
                     results_list = result.fetchall()
                     # Get column names
                     column_names = result.keys()  # This gives you a list of column names
-                print("Column names sqlalchemy: ", column_names)
                 # Ensure the result is a list
                 if isinstance(result, dict) and 'result' in result:
                     results_list = result['result'] if isinstance(result['result'], list) else [result['result']]
                 else:
                     results_list = results_list if isinstance(results_list, list) else [results_list]
 
-                print(f"Attempt {attempt + 1}: Results_list: {results_list}")
+                print(f"Attempt {attempt + 1}: Results: {results_list}\n")
 
                 # If the query is successful, return the result
                 if not (isinstance(results_list, str) and 'Error' in result):
@@ -98,12 +98,12 @@ def get_chain():
 
                 # If error occurs, record the error message in history and log it
                 error_message = f"SQL query error: {result}"
-                print(f"Error on attempt {attempt + 1}: {error_message}")
+                print(f"Error on attempt {attempt + 1}: {error_message}\n")
                 history.append({"role": "assistant", "content": error_message})
 
             except Exception as e:
                 error_message = f"Unexpected error: {e}"
-                print(f"Unexpected error on attempt {attempt + 1}: {error_message}")
+                print(f"Unexpected error on attempt {attempt + 1}: {error_message}\n")
                 history.append({"role": "assistant", "content": error_message})
 
             # If the query failed, invoke the LLM to generate a corrected query
@@ -151,13 +151,15 @@ def get_chain():
     chain = (
         RunnablePassthrough.assign(table_names_to_use=select_table) |
         RunnablePassthrough.assign(query=generate_query).assign(
-            result=itemgetter("query", "messages") | RunnableLambda(lambda inputs: execute_query_with_handling(inputs[0], inputs[1]))
-        ).assign(
+            result=itemgetter("question","query", "messages") | RunnableLambda(lambda inputs: check_against_definition(inputs[0],inputs[1],inputs[2])) |
+            RunnableLambda(lambda inputs: execute_query_with_handling(inputs[0], inputs[1]))
+        ).assign(formatted_result=lambda result: format_results_to_df(result))
+        .assign(
             # Format the result and generate CSV download link
-            Summary=lambda result: format_results_to_df(result)['Summary'],
-            download_link = lambda result: format_results_to_df(result)['Link'],
-            data = lambda result: format_results_to_df(result)['data_list'],
-            data_column = lambda result: format_results_to_df(result)['Column_names']
+            Summary=lambda result: result['formatted_result']['Summary'],
+            download_link=lambda result: result['formatted_result']['Link'],
+            data=lambda result: result['formatted_result']['data_list'],
+            data_column=lambda result: result['formatted_result']['Column_names']
         ) | custom_format
         
     )
@@ -184,21 +186,21 @@ def custom_format(result):
     # Attempt to load the cleaned response content as JSON
     try:
         response_content = json.loads(cleaned_content)  # Decode the cleaned string
-        print("Response Content:", response_content)
+        print(f"Response Content: {response_content}\n")
 
         response_str = response_content.get("Answer", "No answer provided.")  # Default message if key is missing
         chart_type = response_content.get("chart_type", "none")  # Default to "none" if key is missing
         column_names = response_content.get('Column_names',"")
 
-        print("Chart Type:", chart_type)
+        print(f"Chart Type: {chart_type}\n")
 
         return response_str, link, str(result['data']),chart_type,str(column_names),str(data_column) # Add chart_type to the return values
 
     except json.JSONDecodeError as e:
-        print("Error decoding JSON:", e)
+        print(f"Error decoding JSON: {e}\n")
         return "Error processing response", link, str(result['data']),"none",""
     except Exception as e:
-        print("An unexpected error occurred:", e)
+        print(f"An unexpected error occurred: {e}\n")
         return "Error processing response", link, str(result['data']),"none",""
 
 
@@ -222,7 +224,7 @@ def format_results_to_df(result):
         result_tuples = result['result']['data']
         # Generate a summary of rows and columns
 
-        print("Parsing result:", result_tuples, len(result_tuples))
+        print(f"Parsing results of length {len(result_tuples)}\n")
         column_names = result['result']['Column_Names']
         
         if len(result_tuples) <= 5:
@@ -231,10 +233,9 @@ def format_results_to_df(result):
         # Convert result tuples into DataFrame
         df = pd.DataFrame.from_records(result_tuples,columns=column_names)
         download_link = generate_download_link(df) if not df.empty else ""
-        print('LENGTH',len(result_tuples))
         # Generate a summary of rows and columns
         summary = f"We have {len(df)} rows and {len(df.columns)} columns."
-        print(summary)
+        print(f"Summary {summary}\n")
         
         return {'Summary': summary, 'Link': download_link, 'data_list': result_tuples,'Column_names':column_names}
 
@@ -292,7 +293,7 @@ def create_chart(chart_type, data,column_names,data_columns):
         df = pd.DataFrame(data,columns=data_columns)
         df = df[data_columns]
         df.reset_index(drop=True, inplace=True) 
-        print(df)
+        print(f"Dataframe: {df}\n")
     else:
         st.error("Data format is not supported for chart creation.")
         return
@@ -327,3 +328,32 @@ def create_chart(chart_type, data,column_names,data_columns):
         st.pyplot(plt)  # Display the figure
     else:
         pass
+
+
+def check_against_definition(question, query, chat_history):
+    """
+    Use the LLM to check the query against the definitions and adjust it if necessary.
+
+    Args:
+    - question (str): The natural language question that generated the query.
+    - query (str): The generated SQL query to check.
+    - chat_history (list): The chat history for context.
+    - definitions (str): The predefined definitions for validation.
+    - llm (OpenAI or similar model): The LLM to process and adjust the query if needed.
+
+    Returns:
+    - validated_query (str): The validated or adjusted query if it was out of line with definitions.
+    """
+    
+
+    # Use the LLM to check and potentially correct the query
+    validated_query_chain = (check_query_prompt | llm | StrOutputParser())
+    
+    # Invoke the chain and get the validated or corrected query
+    validated_query = validated_query_chain.invoke({"question": question,"query":query,"messages":chat_history})
+
+    print(f"LLM Intial Query: {query}\n")
+
+    print(f"LLM validated or corrected query against Definitions: {validated_query}\n")
+    
+    return validated_query,chat_history

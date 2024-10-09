@@ -114,3 +114,21 @@ answer_prompt = PromptTemplate.from_template(
     """
 )
 
+check_query_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are an intelligent assistant that reviews SQL queries and confirms whether they align with the business definitions and the question asked. Your task is to determine whether a given query adheres to the definitions provided."),
+
+    ("human", "When generating or checking SQL queries, make sure to apply the definitions provided. For example, if a question asks for the number of retail customers, remember that a customer is defined as having an account with a category starting with 1 or 6 and not having category 1080."),
+
+    ("human", "Here is the chat history:"),
+    MessagesPlaceholder(variable_name="messages"),  # This will dynamically include the chat history
+
+    ("human", "Here are the business definitions you must adhere to:"),
+    ("human", f"{definitions_string}"),  # Dynamically include the definitions provided as input
+
+    ("human", "The original question was: {question}"),  # Include the original question explicitly
+
+    ("human", "Here is the SQL query that was generated based on the user's question:"),
+    ("human", "{query}"),  # Include the generated query as input
+
+    ("human", "Your task: Verify the SQL query. Your response should either:\n- Return the original query if it adheres to the definitions, or\n- Provide a new SQL query that adheres to the definitions without any explanation or additional information..")
+])

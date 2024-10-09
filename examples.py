@@ -69,43 +69,29 @@ examples = [
     {
         "input":"How many active account do we have?",
         "query" : """SELECT COUNT(DISTINCT RECID)
-                    FROM T24_ACCOUNTS
-                    WHERE 
-                        (
-                            CATEGORY LIKE '1%' AND  -- Include current accounts
-                            COALESCE(
-                                CASE
-                                    WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST 
-                                        AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK 
-                                        AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
-                                    WHEN DATE_LAST_CR_CUST >= DATE_LAST_DR_CUST 
-                                        AND DATE_LAST_CR_CUST >= DATE_LAST_CR_BANK 
-                                        AND DATE_LAST_CR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_CUST
-                                    WHEN DATE_LAST_CR_BANK >= DATE_LAST_DR_CUST 
-                                        AND DATE_LAST_CR_BANK >= DATE_LAST_CR_CUST 
-                                        AND DATE_LAST_CR_BANK >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_BANK
-                                    ELSE DATE_LAST_DR_BANK
-                                END, OPENING_DATE
-                            ) >= DATEADD(DAY, -90, GETDATE())  --active for current accounts
-                        )
-                        OR
-                        (
-                            CATEGORY LIKE '6%' AND  -- Include savings accounts
-                            COALESCE(
-                                CASE
-                                    WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST 
-                                        AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK 
-                                        AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
-                                    WHEN DATE_LAST_CR_CUST >= DATE_LAST_DR_CUST 
-                                        AND DATE_LAST_CR_CUST >= DATE_LAST_CR_BANK 
-                                        AND DATE_LAST_CR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_CUST
-                                    WHEN DATE_LAST_CR_BANK >= DATE_LAST_DR_CUST 
-                                        AND DATE_LAST_CR_BANK >= DATE_LAST_CR_CUST 
-                                        AND DATE_LAST_CR_BANK >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_BANK
-                                    ELSE DATE_LAST_DR_BANK
-                                END, OPENING_DATE
-                            ) >= DATEADD(DAY, -720, GETDATE())  -- Active for savings accounts
-                        );"""
+                FROM T24_ACCOUNTS
+                WHERE 
+                    (
+                    CATEGORY LIKE '1%' AND  -- Include current accounts
+                    COALESCE(
+                        CASE
+                            WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
+                            WHEN DATE_LAST_CR_CUST >= DATE_LAST_DR_CUST AND DATE_LAST_CR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_CR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_CUST
+                            WHEN DATE_LAST_CR_BANK >= DATE_LAST_DR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_CR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_BANK
+                            ELSE DATE_LAST_DR_BANK
+                        END, OPENING_DATE) >= DATEADD(DAY, -90, GETDATE())  --active for current accounts
+                    )
+                    OR
+                    (
+                    CATEGORY LIKE '6%' AND  -- Include savings accounts
+                    COALESCE(
+                        CASE
+                            WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
+                            WHEN DATE_LAST_CR_CUST >= DATE_LAST_DR_CUST AND DATE_LAST_CR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_CR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_CUST
+                            WHEN DATE_LAST_CR_BANK >= DATE_LAST_DR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_CR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_BANK
+                            ELSE DATE_LAST_DR_BANK
+                        END, OPENING_DATE) >= DATEADD(DAY, -720, GETDATE())  -- Active for savings accounts
+                    );"""
 
     },
     {   "input":"How many Inactive accounts?",
