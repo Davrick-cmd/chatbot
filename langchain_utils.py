@@ -38,7 +38,7 @@ import streamlit as st
 from sqlalchemy import create_engine, text
 import json
 
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+llm = ChatOpenAI(model="gpt-4o", temperature=0.0)
 
 @st.cache_resource
 def get_chain():
@@ -110,7 +110,7 @@ def get_chain():
             if attempt < max_retries - 1:
                 corrected_query = get_corrected_query_llm(query, history)
                 query = corrected_query  # Update query with the new corrected query
-                print(f"Attempt {attempt + 1}: Proposed Query:{query}")
+                print(f"Attempt {attempt + 1}: LLM suggested query:{query}\n")
 
             else:
                 # Max retries reached, return the last error message
@@ -135,14 +135,13 @@ def get_chain():
         Based on the history of queries and error messages below, suggest a corrected SQL query only:
         {history}
 
-        Please return only the corrected SQL query without any additional information or sql or ```.
+        In your correction, please verify that all parentheses match, especially to avoid syntax errors.
+
+        Please return only the corrected SQL query without any additional information or the word 'sql' or '```'.
         """
-      
-        
+
         corrected_query_chain = (RunnableLambda(lambda _: prompt) | llm | StrOutputParser())
         corrected_query = corrected_query_chain.invoke({"question": prompt})
-        
-        print(f"LLM suggested query: {corrected_query}")
         
         return corrected_query
 
@@ -271,7 +270,7 @@ def invoke_chain(question, messages):
         return answer 
     
     chain = get_chain()
-    response = chain.invoke({"question": question, "top_k": 3, "messages": history.messages})
+    response = chain.invoke({"question": question, "top_k": 5, "messages": history.messages})
     history.add_user_message(question)
     history.add_ai_message(response)
     return response
@@ -347,7 +346,7 @@ def check_against_definition(question, query, chat_history):
     
 
     # Use the LLM to check and potentially correct the query
-    validated_query_chain = (check_query_prompt | llm | StrOutputParser())
+    validated_query_chain = (RunnablePassthrough.assign(table_names_to_use=select_table) |check_query_prompt | llm | StrOutputParser())
     
     # Invoke the chain and get the validated or corrected query
     validated_query = validated_query_chain.invoke({"question": question,"query":query,"messages":chat_history})

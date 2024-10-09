@@ -94,12 +94,21 @@ if prompt := st.chat_input("What is up?"):
   
                     # Split the string into a list of values
                     results_list = ast.literal_eval(response[2])
+
+                    try:
+                        if response[4]:  # Check if response[4] is not empty or None
+                            column_names = ast.literal_eval(response[4])
+                        else:
+                            column_names = []  # Return an empty list if response[4] is empty
+                    except (ValueError, SyntaxError):
+                        column_names = []  # Return an empty list if ast.literal_eval fails
+
                     column_names = ast.literal_eval(response[4])
                     data_columns = ast.literal_eval(response[5])
 
                     # Convert to DataFrame
                     df = pd.DataFrame(results_list)
-                    if response[3] == "none":
+                    if response[3] == "none" or len(results_list) <2:
                         print("No chart needed, End of Chain\n")
                     else:
                         create_chart(response[3],results_list,column_names,data_columns)

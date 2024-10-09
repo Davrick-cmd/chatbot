@@ -1,49 +1,3 @@
-
-# # Example data with fixed SQL syntax
-# examples = [
-#     {
-#         "input": "How many customers do we have in the bank?",
-#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE RECID IN (SELECT CUSTOMER FROM V_ACCOUNT WHERE CATEGORY <> '1080');"
-#     },
-#     {
-#         "input": "How many Current accounts?",
-#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_ACCOUNT WHERE CATEGORY LIKE '1%';"
-#     },
-#     {
-#         "input": "How many accounts transacted yesterday?",
-#         "query": """SELECT COUNT(DISTINCT RECID) AS account_count, 
-#                     GREATEST(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST) AS Last_transaction_date 
-#                     FROM V_ACCOUNT 
-#                     WHERE GREATEST(DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, DATE_LAST_CR_CUST) = CAST(GETDATE() - 1 AS DATE);"""
-#     },
-#     { 
-#         "input": "How many customers are in the retail segment?",
-#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '1';"
-#     },
-#     {
-#         "input": "How many Loan accounts?",
-#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_ACCOUNT WHERE CATEGORY LIKE '3%';"
-#     },
-#     { 
-#         "input": "How many agriculture customers do we have?",
-#         "query": "SELECT COUNT(DISTINCT RECID) FROM V_CUSTOMER WHERE SEGMENT = '2';"
-#     },
-#     { 
-#         "input": "Give me a list of 10 corporate customers names?",
-#         "query": "SELECT TOP 5 CUSTOMER_NAME FROM V_CUSTOMER WHERE SEGMENT = '3';"
-#     },
-#     { 
-#         "input": "Give me a list of all vip customers?",
-#         "query": "SELECT * FROM V_CUSTOMER WHERE TARGET in ('57,'66','91');"
-#     },
-#     { 
-#         "input": "Give a list of all targets to identify different customers",
-#         "query": "SELECT DISTINCT TARGET FROM V_CUSTOMER;"
-#     }
-# ]
-
-
-
 # Example data with fixed SQL syntax
 examples = [
     {
@@ -69,36 +23,36 @@ examples = [
     {
         "input":"How many active account do we have?",
         "query" : """SELECT COUNT(DISTINCT RECID)
-                FROM T24_ACCOUNTS
-                WHERE 
-                    (
-                    CATEGORY LIKE '1%' AND  -- Include current accounts
-                    COALESCE(
-                        CASE
-                            WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
-                            WHEN DATE_LAST_CR_CUST >= DATE_LAST_DR_CUST AND DATE_LAST_CR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_CR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_CUST
-                            WHEN DATE_LAST_CR_BANK >= DATE_LAST_DR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_CR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_BANK
-                            ELSE DATE_LAST_DR_BANK
-                        END, OPENING_DATE) >= DATEADD(DAY, -90, GETDATE())  --active for current accounts
-                    )
-                    OR
-                    (
-                    CATEGORY LIKE '6%' AND  -- Include savings accounts
-                    COALESCE(
-                        CASE
-                            WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
-                            WHEN DATE_LAST_CR_CUST >= DATE_LAST_DR_CUST AND DATE_LAST_CR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_CR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_CUST
-                            WHEN DATE_LAST_CR_BANK >= DATE_LAST_DR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_CR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_BANK
-                            ELSE DATE_LAST_DR_BANK
-                        END, OPENING_DATE) >= DATEADD(DAY, -720, GETDATE())  -- Active for savings accounts
-                    );"""
+                    FROM T24_ACCOUNTS
+                    WHERE
+                        (CATEGORY LIKE '1%' AND CATEGORY NOT IN ('1080', '1031') AND
+                        COALESCE(
+                            CASE
+                                WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
+                                WHEN DATE_LAST_CR_CUST >= DATE_LAST_DR_CUST AND DATE_LAST_CR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_CR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_CUST
+                                WHEN DATE_LAST_CR_BANK >= DATE_LAST_DR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_CR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_BANK
+                                ELSE DATE_LAST_DR_BANK
+                            END, OPENING_DATE) >= DATEADD(DAY, -90, GETDATE())  -- Active for current accounts
+                        )
+                        OR
+                        (CATEGORY LIKE '6%' AND
+                        COALESCE(
+                            CASE
+                                WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
+                                WHEN DATE_LAST_CR_CUST >= DATE_LAST_DR_CUST AND DATE_LAST_CR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_CR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_CUST
+                                WHEN DATE_LAST_CR_BANK >= DATE_LAST_DR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_CR_CUST AND DATE_LAST_CR_BANK >= DATE_LAST_DR_BANK THEN DATE_LAST_CR_BANK
+                                ELSE DATE_LAST_DR_BANK
+                            END, OPENING_DATE) >= DATEADD(DAY, -720, GETDATE())  -- Active for savings accounts
+                        )
+                        AND CATEGORY NOT IN ('1080', '1031')
+                    """
 
     },
     {   "input":"How many Inactive accounts?",
         "query":"""SELECT COUNT(DISTINCT RECID)
                 FROM T24_ACCOUNTS
                 WHERE 
-                    (CATEGORY LIKE '1%' AND  -- Include current accounts
+                    (CATEGORY LIKE '1%' AND  CATEGORY NOT IN ('1080', '1031') AND-- Include current accounts
                     COALESCE(
                         CASE
                             WHEN DATE_LAST_DR_CUST >= DATE_LAST_CR_CUST AND DATE_LAST_DR_CUST >= DATE_LAST_CR_BANK AND DATE_LAST_DR_CUST >= DATE_LAST_DR_BANK THEN DATE_LAST_DR_CUST
