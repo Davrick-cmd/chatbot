@@ -31,7 +31,7 @@ with st.sidebar:
     # Model selection dropdown
     model = st.selectbox(
         "Model:",
-        ["Churn Prediction", "Loan Performance", "Bank overview"],
+        ["Model 1", "Model 2", "Model 3"],
         index=0
     )
     # Temperature control (for creativity)
