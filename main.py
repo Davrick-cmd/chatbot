@@ -102,13 +102,11 @@ if prompt := st.chat_input("What is up?"):
                             column_names = []  # Return an empty list if response[4] is empty
                     except (ValueError, SyntaxError):
                         column_names = []  # Return an empty list if ast.literal_eval fails
-
-                    column_names = ast.literal_eval(response[4])
                     data_columns = ast.literal_eval(response[5])
 
                     # Convert to DataFrame
                     df = pd.DataFrame(results_list)
-                    if response[3] == "none" or len(results_list) <2:
+                    if response[3] == "none" or len(results_list) <2 or len(results_list) > 24:
                         print("No chart needed, End of Chain\n")
                     else:
                         create_chart(response[3],results_list,column_names,data_columns)

@@ -39,6 +39,11 @@ from sqlalchemy import create_engine, text
 import json
 
 llm = ChatOpenAI(model="gpt-4o", temperature=0.0)
+tables_to_include = ['T24_ACCOUNTS', 'T24_CUSTOMERS_ALL']
+db = SQLDatabase.from_uri(
+        f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
+        include_tables=tables_to_include
+    )
 
 @st.cache_resource
 def get_chain():
@@ -58,7 +63,7 @@ def get_chain():
     engine = create_engine(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server"
     )
-
+    
     def execute_query_with_handling(query,history,max_retries=3):
         """
         Execute the query with error handling. If an error occurs, invoke the LLM to 
@@ -150,7 +155,7 @@ def get_chain():
     chain = (
         RunnablePassthrough.assign(table_names_to_use=select_table) |
         RunnablePassthrough.assign(query=generate_query).assign(
-            result=itemgetter("question","query", "messages") | RunnableLambda(lambda inputs: check_against_definition(inputs[0],inputs[1],inputs[2])) |
+            result=itemgetter("question","query", "messages","table_names_to_use") | RunnableLambda(lambda inputs: check_against_definition(inputs[0],inputs[1],inputs[2],inputs[3])) |
             RunnableLambda(lambda inputs: execute_query_with_handling(inputs[0], inputs[1]))
         ).assign(formatted_result=lambda result: format_results_to_df(result))
         .assign(
@@ -329,7 +334,7 @@ def create_chart(chart_type, data,column_names,data_columns):
         pass
 
 
-def check_against_definition(question, query, chat_history):
+def check_against_definition(question, query, chat_history,table_names):
     """
     Use the LLM to check the query against the definitions and adjust it if necessary.
 
@@ -343,13 +348,18 @@ def check_against_definition(question, query, chat_history):
     Returns:
     - validated_query (str): The validated or adjusted query if it was out of line with definitions.
     """
+
+    temp_db =  SQLDatabase.from_uri(
+        f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
+        include_tables=table_names)
     
+    table_info = temp_db.get_table_info()
 
     # Use the LLM to check and potentially correct the query
-    validated_query_chain = (RunnablePassthrough.assign(table_names_to_use=select_table) |check_query_prompt | llm | StrOutputParser())
+    validated_query_chain = (check_query_prompt | llm | StrOutputParser())
     
     # Invoke the chain and get the validated or corrected query
-    validated_query = validated_query_chain.invoke({"question": question,"query":query,"messages":chat_history})
+    validated_query = validated_query_chain.invoke({"question": question,"query":query,"messages":chat_history,"table_info":table_info})
 
     print(f"LLM Intial Query: {query}\n")
 
