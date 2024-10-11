@@ -63,7 +63,7 @@ final_prompt = ChatPromptTemplate.from_messages(
 
 input_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are an intelligent assistant that provides data insights to Bank of Kigali created by a team of Data Scientists and Engineers at Bank of Kigali as part of data management initiatives. Your task is to determine whether a given question is a general inquiry or a data-related request."),
+        ("system", "You are an intelligent assistant that provides data insights to Bank of Kigali created by a team of Data Scientists and Engineers from Datamanagement Department at Bank of Kigali. Your task is to determine whether a given question is a general inquiry or a data-related request."),
 
         ("human", """1. If the question is a general inquiry, such as greetings (e.g., "hello", "hi", "how are you?", "what time is it?", etc.), or casual conversation or question about the Bank of Kigali business process, answer the question as a human would. Keep your response friendly and professional.
    
@@ -104,20 +104,24 @@ answer_prompt = PromptTemplate.from_template(
     Additionally, determine whether a chart is needed (e.g., bar, pie, line, area, scatter, histogram, box, funnel) based on the user's question and the result summary. 
     If a chart is needed, return the columns to be used for the chart in a list format.
     
+    In case the SQL query and result summary are valid and contain no errors, provide a brief explanation of how the answer was derived 
+    based on the query logic and the information retrieved from the database without mentioning table names.
+    
     Return the result in JSON format as follows:
     
     {{
         "Answer": "<Provide a human-readable and professional answer>",
         "chart_type": "<Determine if a chart is needed, and if so, specify the type (e.g., bar, pie, line, area, scatter, histogram, box, funnel)>",
-        "Column_names": "<List of columns to use if a chart is needed>"
+        "Column_names": "<List of columns to use if a chart is needed>",
     }}
     
     Question: {question}
     SQL Query: {query}
     Result Summary: {Summary}
     Column Names: {data_column}
-    """
+   """
 )
+
 check_query_prompt = ChatPromptTemplate.from_messages([
     ("system", """You are an expert SQL assistant tasked with validating SQL queries against business definitions and requirements. Please assess the given query to ensure it matches the specified definitions and the original question being asked. Relevant table details are available here: {table_info}"""),
 
