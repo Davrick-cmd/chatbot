@@ -8,7 +8,12 @@ import ast
 
 st.set_page_config(layout="wide",
                     page_title = "DataManagement AI",
-                    page_icon = "img/bkofkgl.png")
+                    page_icon = "img/bkofkgl.png",
+                        menu_items={
+        'Get Help': 'mailto:john@example.com',
+        'About': "#### This is DataManagment cool app!"
+    }
+                    )
 from openai import OpenAI
 
 from langchain_utils import invoke_chain,create_chart
