@@ -6,6 +6,7 @@ from langchain.chains.openai_tools import create_extraction_chain_pydantic
 from pydantic import BaseModel,Field
 
 from langchain_openai import ChatOpenAI
+from prompts import definitions_string
 
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
@@ -37,11 +38,17 @@ def get_tables(tables: List[Table]) -> List[str]:
 # table_names = "\n".join(db.get_usable_table_names())
 table_details = get_table_details()
 
-table_details_prompt = f"""Return the names of ALL the SQL tables that MIGHT be relevant to the user question. \
-The tables are:
+table_details_prompt = f"""
+Return the names of ALL the SQL tables that MIGHT be relevant to the user question. 
 
+The tables are:
 {table_details}
 
-Remember to include ALL POTENTIALLY RELEVANT tables, even if you're not sure that they're needed."""
+In addition to considering the tables, you must also take into account the following business definitions when identifying relevant tables:
+
+{definitions_string}
+
+Remember to include ALL POTENTIALLY RELEVANT tables, even if you're not sure that they're needed, and make sure that the tables you select align with these business definitions.
+"""
 
 table_chain = {"input": itemgetter("question")} | create_extraction_chain_pydantic(Table, llm, system_message=table_details_prompt) | get_tables

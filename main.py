@@ -102,8 +102,6 @@ if prompt := st.chat_input("What is up?"):
                             column_names = []  # Return an empty list if response[4] is empty
                     except (ValueError, SyntaxError):
                         column_names = []  # Return an empty list if ast.literal_eval fails
-
-                    column_names = ast.literal_eval(response[4])
                     data_columns = ast.literal_eval(response[5])
 
                     # Convert to DataFrame

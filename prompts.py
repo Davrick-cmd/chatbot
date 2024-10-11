@@ -65,27 +65,32 @@ input_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", "You are an intelligent assistant that provides data insights to Bank of Kigali created by a team of Data Scientists and Engineers at Bank of Kigali as part of data management initiatives. Your task is to determine whether a given question is a general inquiry or a data-related request."),
 
-        ("human", """1. If the question is a general inquiry, such as greetings (e.g., "hello", "hi", "how are you?", "what time is it?", etc.), or casual conversation, answer the question as a human would. Keep your response friendly and professional.
+        ("human", """1. If the question is a general inquiry, such as greetings (e.g., "hello", "hi", "how are you?", "what time is it?", etc.), or casual conversation or question about the Bank of Kigali business process, answer the question as a human would. Keep your response friendly and professional.
    
-2. If the question is related to retrieving data, running a query, or anything involving a specific table, dataset, or technical process, respond only with the number 1.
+    2. If the question is related to retrieving data, running a query, or anything involving a specific table, dataset, or technical process, respond only with the number 1.
 
-Examples of general inquiries:
-- "Hello, how are you?"
-- "What time is it?"
-- "Hi, tell me a joke."
-- "Good morning!"
+    Examples of general inquiries:
+    - "Hello, how are you?"
+    - "What time is it?"
+    - "Hi, tell me a joke."
+    - "Good morning!"
+    - "What is an dormant customer?" 
+    - "How do you identify vip customer?"
+    - "How do you calculate churn rate?"
 
-Examples of data-related requests:
-- "Show me the sales data for Q3."
-- "Retrieve the customer info from the database."
-- "Run a query on the accounts table."
-- "How many users registered last month?"
-"""),
+    Examples of data-related requests:
+    - "Show me the list of accounts that transacted last week."
+    - "Retrieve the customer info from the database."
+    - "Who is the customer named Paul"
+    - "How many new customers registered last month?"
+    """),
 
         ("human", "Here is the chat history:"),
         MessagesPlaceholder(variable_name="messages"),  # This will dynamically include the chat history
 
         ("human", "Here is the question: \"{question}\""),
+        ("human", "Below are the official Bank of Kigali business definitions:"),
+        ("human", f"{definitions_string}"), 
 
         ("human", "Your response should either:\n- Be a conversational answer if it’s a general inquiry, or\n- Return \"1\" if it’s data-related.")
     ]
@@ -114,7 +119,7 @@ answer_prompt = PromptTemplate.from_template(
     """
 )
 check_query_prompt = ChatPromptTemplate.from_messages([
-    ("system", """You are an expert SQL assistant tasked with validating SQL queries against business definitions and requirements. Please assess the given query to ensure it matches the specified definitions and the original question being asked. Relevant table details are available here: {{table_info}}"""),
+    ("system", """You are an expert SQL assistant tasked with validating SQL queries against business definitions and requirements. Please assess the given query to ensure it matches the specified definitions and the original question being asked. Relevant table details are available here: {table_info}"""),
 
     ("human", "When generating or evaluating any SQL query, strictly apply the definitions provided. For clarity, if a question seeks the number of retail customers, the definition specifies a customer as having an account with a category starting with 1 or 6, excluding category 1080."),
 
@@ -125,6 +130,9 @@ check_query_prompt = ChatPromptTemplate.from_messages([
 
     ("human", "The SQL query that was generated based on the above question is as follows:"),
     ("human", "{query}"),  # Present the generated query
+
+    ("human", "Here is the chat history:"),
+    MessagesPlaceholder(variable_name="messages"),  # Include the conversation history
 
     ("human", "Your task is to review the SQL query. Please do one of the following:\n- Return the original query if it fully complies with the given definitions,\n- Provide a corrected SQL query that fully aligns with the definitions. Do not include any explanations or extra information in your response.")
 ])
