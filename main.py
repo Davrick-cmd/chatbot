@@ -32,10 +32,10 @@ with st.sidebar:
     model = st.selectbox(
         "Model:",
         ["Model 1", "Model 2", "Model 3"],
-        index=0
+        index=0,disabled=True
     )
     # Temperature control (for creativity)
-    temperature = st.slider("Creativity (Temperature)", min_value=0.0, max_value=1.0, value=0.5, step=0.1,)
+    temperature = st.slider("Creativity (Temperature)", min_value=0.0, max_value=1.0, value=0.0, step=0.1,disabled=True)
     # Save chat history as a text file
     if st.button("Download Chat History",use_container_width=True):
         chat_history = "\n".join([f'{msg["role"]}: {msg["content"]}' for msg in st.session_state.messages])
@@ -93,7 +93,15 @@ if prompt := st.chat_input("What is up?"):
                     st.markdown(href, unsafe_allow_html=True)
   
                     # Split the string into a list of values
-                    results_list = ast.literal_eval(response[2])
+                    # results_list = ast.literal_eval(response[2])
+
+                    try:
+                        if response[2]:  # Check if response[4] is not empty or None
+                            results_list = ast.literal_eval(response[2])
+                        else:
+                            results_list = []  # Return an empty list if response[4] is empty
+                    except (ValueError, SyntaxError):
+                        results_list = []  # Return an empty list if ast.literal_eval fails
 
                     try:
                         if response[4]:  # Check if response[4] is not empty or None
@@ -106,7 +114,7 @@ if prompt := st.chat_input("What is up?"):
 
                     # Convert to DataFrame
                     df = pd.DataFrame(results_list)
-                    if response[3] == "none" or len(results_list) <2 or len(results_list) > 24:
+                    if response[3] == "none" or len(results_list) < 3 or len(results_list) > 24:
                         print("No chart needed, End of Chain\n")
                     else:
                         create_chart(response[3],results_list,column_names,data_columns)
