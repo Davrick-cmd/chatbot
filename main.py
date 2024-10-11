@@ -106,7 +106,7 @@ if prompt := st.chat_input("What is up?"):
 
                     # Convert to DataFrame
                     df = pd.DataFrame(results_list)
-                    if response[3] == "none" or len(results_list) <2:
+                    if response[3] == "none" or len(results_list) <2 or len(results_list) > 24:
                         print("No chart needed, End of Chain\n")
                     else:
                         create_chart(response[3],results_list,column_names,data_columns)
