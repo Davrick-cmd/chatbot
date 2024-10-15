@@ -20,6 +20,8 @@ from langchain_utils import invoke_chain,create_chart
 
 
 
+
+
 st.title("DataManagement AI")
 
 st.logo(
@@ -65,7 +67,7 @@ if "messages" not in st.session_state:
     print("Creating session state\n")
     st.session_state.messages = []
 
-# Display chat messages from history on app rerun
+
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
     with st.chat_message(message["role"], avatar='img/user-icon.png' if message["role"] == "user" else 'img/bkofkgl.png'):
