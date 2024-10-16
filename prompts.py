@@ -20,9 +20,9 @@ definitions = {
     "Current Account": "Accounts categorized with a starting digit '1', excluding category '1080' or '1031'. Predominantly used for routine transactions.",
     "Loan Account": "Accounts categorized with a starting digit '3', specifically associated with loan purposes.",
     "VIP Customer": "A high-value status customer identified by target codes: '57', '66', or '91'.",
-    "Transaction Date": "The date of the most recent debit or credit by the bank or customer, computed as the maximum of DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, and DATE_LAST_CR_CUST. Defaults to the opening date if no transactions exist.",
-    "Active Account": "A current account (non-1080/1031) with at least one transaction in the last 90 days, or a savings account with at least one transaction in the last 720 days.",
-    "Inactive Account": "A current account (non-1080/1031) without transactions for over 90 days but with transaction history within the last 180 days, or a savings account with no transactions in the last 720 days.",
+    "Transaction Date": "The date of the most recent transaction on the aacount",
+    "Active Account": "A current account (non-1080/1031) with at least one transaction in the last 90 days, or a savings account with at least one transaction in the last 360 days.",
+    "Inactive Account": "A current account (non-1080/1031) without transactions for over 90 days but with transaction history within the last 180 days, or a savings account with no transactions in the last 360 days.",
     "Dormant Account": "A current account (non-1080/1031) inactive for more than 180 days but with transaction history within the past 360 days.",
     "Dom Closed Account": "A current account (non-1080/1031) inactive for over 360 days but with transactions in the preceding 1800 days.",
     "Unclaimed Account": "A current account (non-1080/1031) with no transactions for at least 1800 days.",
@@ -31,7 +31,8 @@ definitions = {
     "Dormant Customer": "A customer without active or inactive accounts, owning at least one dormant account.",
     "Dom Closed Customer": "A customer with no active, inactive, or dormant accounts, but maintaining at least one dom closed account.",
     "Unclaimed Customer": "A customer who has unclaimed current accounts only.",
-    "Churn Customer": "A customer who has only Dom Closed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment."
+    "Churn Customer": "A customer who has only Dom Closed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment.",
+    "Churn Rate": "it is the percentage of Churn Customers over total number of customers (according to our definition)."
 }
 
 # Convert the definitions dictionary to a string format

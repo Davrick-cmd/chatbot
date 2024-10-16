@@ -40,7 +40,7 @@ import json
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 llm_4 = ChatOpenAI(model="gpt-4o", temperature=0.0)
-tables_to_include = ['T24_ACCOUNTS', 'T24_CUSTOMERS_ALL']
+tables_to_include = ['CB_ACCOUNTS', 'CB_CUSTOMERS']
 db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
         include_tables=tables_to_include
@@ -49,7 +49,7 @@ db = SQLDatabase.from_uri(
 @st.cache_resource
 def get_chain():
     print("Creating chain\n")
-    tables_to_include = ['T24_ACCOUNTS', 'T24_CUSTOMERS_ALL','DG_DATA']
+    tables_to_include = ['CB_ACCOUNTS', 'CB_CUSTOMERS','DG_DATA']
 
     db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
