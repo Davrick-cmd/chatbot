@@ -9,7 +9,7 @@ examples = [
                 JOIN CB_ACCOUNTS a
                     ON c.CUSTOMER_NO = a.CUSTOMER_NUMBER
                 WHERE a.CATEGORY NOT IN ('1080', '1031')
-                AND SUBSTRING(a.CATEGORY, 1, 1) IN ('1', '6');
+                AND SUBSTRING(a.CATEGORY, 1, 1) IN ('1', '6')
 
                     );"""
     },
@@ -130,6 +130,208 @@ examples = [
     { 
         "input": "Give a list of all targets to identify different customers",
         "query": "SELECT DISTINCT TARGET FROM CB_CUSTOMERS;"
+    },
+    {
+        "input":"How many inactive customers do we have?",
+        "query":""" --Inactive Customer": "A customer with no active accounts but possessing at least one inactive current or savings account.
+                    WITH Inactive_Accounts AS (
+                        SELECT CUSTOMER_NUMBER
+                        FROM CB_ACCOUNTS
+                        WHERE 
+                            -- Inactive current account (last transaction between 90 and 180 days ago)
+                            (CATEGORY LIKE '1%' AND CATEGORY NOT IN ('1080', '1031')
+                            AND LAST_TRANSACTION_DATE < DATEADD(DAY, -90, GETDATE())
+                            AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -180, GETDATE()))
+                            
+                            OR
+                            
+                            -- Inactive savings account (no transactions for more than 360 days)
+                            (CATEGORY LIKE '6%' AND CATEGORY NOT IN ('1080', '1031')
+                            AND LAST_TRANSACTION_DATE < DATEADD(DAY, -360, GETDATE()))
+                    ),
+                    Active_Accounts AS (
+                        SELECT CUSTOMER_NUMBER
+                        FROM CB_ACCOUNTS
+                        WHERE 
+                            -- Active current accounts
+                            (CATEGORY LIKE '1%' AND CATEGORY NOT IN ('1080', '1031')
+                            AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -90, GETDATE()))
+                            
+                            OR
+                            
+                            -- Active savings accounts
+                            (CATEGORY LIKE '6%' AND CATEGORY NOT IN ('1080', '1031')
+                            AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -360, GETDATE()))
+                    )
+                    SELECT COUNT(DISTINCT C.CUSTOMER_NO) AS Inactive_Customers
+                    FROM CB_CUSTOMERS C
+                    -- Join to ensure customer has at least one inactive account
+                    INNER JOIN Inactive_Accounts IA
+                        ON C.CUSTOMER_NO = IA.CUSTOMER_NUMBER
+                    -- Left join to filter out customers with active accounts
+                    LEFT JOIN Active_Accounts AA
+                        ON C.CUSTOMER_NO = AA.CUSTOMER_NUMBER
+                    WHERE AA.CUSTOMER_NUMBER IS NULL; -- Ensure no active accounts;
+                    """
+    },
+    {   "input":"How many dom closed customers do we have?",
+        "query":""" --Dom Closed Customer": "A customer with no active, inactive, or dormant accounts but possessing at least one dom closed current account.
+                    WITH Dom_Closed_Accounts AS (
+                        SELECT CUSTOMER_NUMBER
+                        FROM CB_ACCOUNTS
+                        WHERE 
+                            -- Dom Closed Account (Inactive for over 360 days but had transactions in the last 1800 days)
+                            CATEGORY LIKE '1%' 
+                            AND CATEGORY NOT IN ('1080', '1031')
+                            AND LAST_TRANSACTION_DATE < DATEADD(DAY, -360, GETDATE()) 
+                            AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -1800, GETDATE())
+                    ),
+                    Active_Accounts AS (
+                        SELECT CUSTOMER_NUMBER
+                        FROM CB_ACCOUNTS
+                        WHERE 
+                            -- Active current account
+                            (CATEGORY LIKE '1%' AND CATEGORY NOT IN ('1080', '1031')
+                            AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -90, GETDATE()))
+                            
+                            OR
+                            
+                            -- Active savings account
+                            (CATEGORY LIKE '6%' AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -360, GETDATE()))
+                    ),
+                    Inactive_Accounts AS (
+                        SELECT CUSTOMER_NUMBER
+                        FROM CB_ACCOUNTS
+                        WHERE 
+                            -- Inactive current account
+                            (CATEGORY LIKE '1%' AND CATEGORY NOT IN ('1080', '1031')
+                            AND LAST_TRANSACTION_DATE < DATEADD(DAY, -90, GETDATE())
+                            AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -180, GETDATE()))
+                            
+                            OR
+                            
+                            -- Inactive savings account
+                            (CATEGORY LIKE '6%' AND LAST_TRANSACTION_DATE < DATEADD(DAY, -360, GETDATE())
+                            AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -720, GETDATE()))
+                    ),
+                    Dormant_Accounts AS (
+                        SELECT CUSTOMER_NUMBER
+                        FROM CB_ACCOUNTS
+                        WHERE 
+                            -- Dormant current account
+                            CATEGORY LIKE '1%' 
+                            AND CATEGORY NOT IN ('1080', '1031')
+                            AND LAST_TRANSACTION_DATE < DATEADD(DAY, -180, GETDATE())
+                            AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -360, GETDATE())
+                    )
+                    SELECT COUNT(DISTINCT C.CUSTOMER_NO) AS Dom_Closed_Customers
+                    FROM CB_CUSTOMERS C
+                    -- Join with Dom Closed Accounts to ensure customer has at least one dom closed account
+                    INNER JOIN Dom_Closed_Accounts DCA
+                        ON C.CUSTOMER_NO = DCA.CUSTOMER_NUMBER
+                    -- Left join with Active Accounts to filter out customers with active accounts
+                    LEFT JOIN Active_Accounts AA
+                        ON C.CUSTOMER_NO = AA.CUSTOMER_NUMBER
+                    -- Left join with Inactive Accounts to filter out customers with inactive accounts
+                    LEFT JOIN Inactive_Accounts IA
+                        ON C.CUSTOMER_NO = IA.CUSTOMER_NUMBER
+                    -- Left join with Dormant Accounts to filter out customers with dormant accounts
+                    LEFT JOIN Dormant_Accounts DA
+                        ON C.CUSTOMER_NO = DA.CUSTOMER_NUMBER
+                    WHERE AA.CUSTOMER_NUMBER IS NULL
+                    AND IA.CUSTOMER_NUMBER IS NULL
+                    AND DA.CUSTOMER_NUMBER IS NULL; -- Ensure no active, inactive, or dormant accounts;
+
+        """
+
+    },
+    {
+        "input":"What is our churn rate number?",
+        "query":"""
+                WITH Dom_Closed_Accounts AS (
+                    SELECT CUSTOMER_NUMBER
+                    FROM CB_ACCOUNTS
+                    WHERE 
+                        -- Dom Closed Account (Inactive for over 360 days but had transactions in the last 1800 days)
+                        CATEGORY LIKE '1%' 
+                        AND CATEGORY NOT IN ('1080', '1031')
+                        AND LAST_TRANSACTION_DATE < DATEADD(DAY, -360, GETDATE()) 
+                        AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -1800, GETDATE())
+                ),
+                Active_Accounts AS (
+                    SELECT CUSTOMER_NUMBER
+                    FROM CB_ACCOUNTS
+                    WHERE 
+                        -- Active current account
+                        (CATEGORY LIKE '1%' AND CATEGORY NOT IN ('1080', '1031')
+                        AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -90, GETDATE()))
+                        
+                        OR
+                        
+                        -- Active savings account
+                        (CATEGORY LIKE '6%' AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -360, GETDATE()))
+                ),
+                Inactive_Accounts AS (
+                    SELECT CUSTOMER_NUMBER
+                    FROM CB_ACCOUNTS
+                    WHERE 
+                        -- Inactive current account
+                        (CATEGORY LIKE '1%' AND CATEGORY NOT IN ('1080', '1031')
+                        AND LAST_TRANSACTION_DATE < DATEADD(DAY, -90, GETDATE())
+                        AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -180, GETDATE()))
+                        
+                        OR
+                        
+                        -- Inactive savings account
+                        (CATEGORY LIKE '6%' AND LAST_TRANSACTION_DATE < DATEADD(DAY, -360, GETDATE())
+                        AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -720, GETDATE()))
+                ),
+                Dormant_Accounts AS (
+                    SELECT CUSTOMER_NUMBER
+                    FROM CB_ACCOUNTS
+                    WHERE 
+                        -- Dormant current account
+                        CATEGORY LIKE '1%' 
+                        AND CATEGORY NOT IN ('1080', '1031')
+                        AND LAST_TRANSACTION_DATE < DATEADD(DAY, -180, GETDATE())
+                        AND LAST_TRANSACTION_DATE >= DATEADD(DAY, -360, GETDATE())
+                ),
+                Total_Customers AS (
+                    SELECT COUNT(DISTINCT c.CUSTOMER_NO) AS Total
+                    FROM CB_CUSTOMERS c
+                    JOIN CB_ACCOUNTS a
+                        ON c.CUSTOMER_NO = a.CUSTOMER_NUMBER
+                    WHERE a.CATEGORY NOT IN ('1080', '1031')
+                    AND SUBSTRING(a.CATEGORY, 1, 1) IN ('1', '6')
+                )
+
+                SELECT 
+                    COUNT(DISTINCT C.CUSTOMER_NO) AS Dom_Closed_Customers,
+                    (SELECT Total FROM Total_Customers) AS Total_Customers,
+                    CASE 
+                        WHEN (SELECT Total FROM Total_Customers) > 0 THEN 
+                            (COUNT(DISTINCT C.CUSTOMER_NO) * 1.0 / (SELECT Total FROM Total_Customers)) * 100
+                        ELSE 0
+                    END AS Churn_Rate
+                FROM CB_CUSTOMERS C
+                -- Join with Dom Closed Accounts to ensure customer has at least one dom closed account
+                INNER JOIN Dom_Closed_Accounts DCA
+                    ON C.CUSTOMER_NO = DCA.CUSTOMER_NUMBER
+                -- Left join with Active Accounts to filter out customers with active accounts
+                LEFT JOIN Active_Accounts AA
+                    ON C.CUSTOMER_NO = AA.CUSTOMER_NUMBER
+                -- Left join with Inactive Accounts to filter out customers with inactive accounts
+                LEFT JOIN Inactive_Accounts IA
+                    ON C.CUSTOMER_NO = IA.CUSTOMER_NUMBER
+                -- Left join with Dormant Accounts to filter out customers with dormant accounts
+                LEFT JOIN Dormant_Accounts DA
+                    ON C.CUSTOMER_NO = DA.CUSTOMER_NUMBER
+                -- Ensure no active, inactive, or dormant accounts
+                WHERE AA.CUSTOMER_NUMBER IS NULL
+                AND IA.CUSTOMER_NUMBER IS NULL
+                AND DA.CUSTOMER_NUMBER IS NULL;
+
+        """
     }
 ]
 

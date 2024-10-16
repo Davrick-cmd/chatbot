@@ -32,7 +32,7 @@ definitions = {
     "Dom Closed Customer": "A customer with no active, inactive, or dormant accounts, but maintaining at least one dom closed account.",
     "Unclaimed Customer": "A customer who has unclaimed current accounts only.",
     "Churn Customer": "A customer who has only Dom Closed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment.",
-    "Churn Rate": "it is the percentage of Churn Customers over total number of customers (according to our definition)."
+    "Churn Rate": " it is the percentage of Churn Customers over total number of customers (according to our definition)."
 }
 
 # Convert the definitions dictionary to a string format
