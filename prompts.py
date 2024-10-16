@@ -20,9 +20,9 @@ definitions = {
     "Current Account": "Accounts categorized with a starting digit '1', excluding category '1080' or '1031'. Predominantly used for routine transactions.",
     "Loan Account": "Accounts categorized with a starting digit '3', specifically associated with loan purposes.",
     "VIP Customer": "A high-value status customer identified by target codes: '57', '66', or '91'.",
-    "Transaction Date": "The date of the most recent debit or credit by the bank or customer, computed as the maximum of DATE_LAST_DR_BANK, DATE_LAST_CR_BANK, DATE_LAST_DR_CUST, and DATE_LAST_CR_CUST. Defaults to the opening date if no transactions exist.",
-    "Active Account": "A current account (non-1080/1031) with at least one transaction in the last 90 days, or a savings account with at least one transaction in the last 720 days.",
-    "Inactive Account": "A current account (non-1080/1031) without transactions for over 90 days but with transaction history within the last 180 days, or a savings account with no transactions in the last 720 days.",
+    "Transaction Date": "The date of the most recent transaction on the aacount",
+    "Active Account": "A current account (non-1080/1031) with at least one transaction in the last 90 days, or a savings account with at least one transaction in the last 360 days.",
+    "Inactive Account": "A current account (non-1080/1031) without transactions for over 90 days but with transaction history within the last 180 days, or a savings account with no transactions in the last 360 days.",
     "Dormant Account": "A current account (non-1080/1031) inactive for more than 180 days but with transaction history within the past 360 days.",
     "Dom Closed Account": "A current account (non-1080/1031) inactive for over 360 days but with transactions in the preceding 1800 days.",
     "Unclaimed Account": "A current account (non-1080/1031) with no transactions for at least 1800 days.",
@@ -31,7 +31,8 @@ definitions = {
     "Dormant Customer": "A customer without active or inactive accounts, owning at least one dormant account.",
     "Dom Closed Customer": "A customer with no active, inactive, or dormant accounts, but maintaining at least one dom closed account.",
     "Unclaimed Customer": "A customer who has unclaimed current accounts only.",
-    "Churn Customer": "A customer who has only Dom Closed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment."
+    "Churn Customer": "A customer who has only Dom Closed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment.",
+    "Churn Rate": "it is the percentage of Churn Customers over total number of customers (according to our definition)."
 }
 
 # Convert the definitions dictionary to a string format
@@ -63,38 +64,43 @@ final_prompt = ChatPromptTemplate.from_messages(
 
 input_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are an intelligent assistant that provides data insights to Bank of Kigali created by a team of Data Scientists and Engineers from Datamanagement Department at Bank of Kigali. Your task is to determine whether a given question is a general inquiry or a data-related request."),
+        ("system", "You are an intelligent assistant that provides data insights to Bank of Kigali, created by a team of Data Scientists and Engineers from the Datamanagement Department at Bank of Kigali. Your task is to determine whether a given question is a general inquiry, a business process question, or a data-related request."),
 
-        ("human", """1. If the question is a general inquiry, such as greetings (e.g., "hello", "hi", "how are you?", "what time is it?", etc.), or casual conversation or question about the Bank of Kigali business process, answer the question as a human would. Keep your response friendly and professional.
+        ("human", """1. If the question is a general inquiry, such as greetings (e.g., "hello", "hi", "how are you?", "what time is it?", who created you? etc.), answer the question conversationally. Keep your response friendly and professional.
    
-    2. If the question is related to retrieving data, running a query, or anything involving a specific table, dataset, or technical process, respond only with the number 1.
+    2. If the question is about the Bank of Kigali business process or a term defined in the definitions, use the definitions to provide a clear answer.
+
+    3. If the question involves retrieving data, running a query, or anything technical involving a table, dataset, or database, respond with the number "1".
 
     Examples of general inquiries:
     - "Hello, how are you?"
     - "What time is it?"
-    - "Hi, tell me a joke."
+    - "Tell me a joke."
     - "Good morning!"
-    - "What is an dormant customer?" 
-    - "How do you identify vip customer?"
+    - "Who are you?"
+    
+    Examples of business process questions:
+    - "What is a dormant customer?" 
+    - "How do you identify VIP customers?"
     - "How do you calculate churn rate?"
 
     Examples of data-related requests:
     - "Show me the list of accounts that transacted last week."
     - "Retrieve the customer info from the database."
-    - "Who is the customer named Paul"
     - "How many new customers registered last month?"
     """),
 
         ("human", "Here is the chat history:"),
-        MessagesPlaceholder(variable_name="messages"),  # This will dynamically include the chat history
+        MessagesPlaceholder(variable_name="messages"),  # Dynamically includes the chat history
 
         ("human", "Here is the question: \"{question}\""),
         ("human", "Below are the official Bank of Kigali business definitions:"),
         ("human", f"{definitions_string}"), 
 
-        ("human", "Your response should either:\n- Be a conversational answer if it’s a general inquiry, or\n- Return \"1\" if it’s data-related.")
+        ("human", "Your response should either:\n- Be a conversational answer if it’s a general inquiry,\n- Provide a clear business explanation using the definitions if it’s a business process question,\n- Or return \"1\" if it’s a data-related request.")
     ]
 )
+
 
 
 answer_prompt = PromptTemplate.from_template(
