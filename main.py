@@ -85,7 +85,9 @@ if prompt := st.chat_input("What is up?"):
     with st.spinner("Generating response..."):
         with st.chat_message("assistant",avatar='img/bkofkgl.png'):
             print(f"Session state: {st.session_state.messages}\n")
-            response = invoke_chain(prompt,st.session_state.messages)
+            # Pass only the last three messages to the invoke_chain function
+            last_three_messages = st.session_state.messages[-10:]  # Get the last 3 messages
+            response = invoke_chain(prompt,last_three_messages)
 
             if isinstance(response,str):
                 st.markdown(response)
