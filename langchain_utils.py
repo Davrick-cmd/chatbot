@@ -352,6 +352,10 @@ def check_against_definition(question, query, chat_history,table_names):
     - validated_query (str): The validated or adjusted query if it was out of line with definitions.
     """
 
+    if len(table_names) == 0:
+        table_names = tables_to_include
+    
+
     temp_db =  SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
         include_tables=table_names)

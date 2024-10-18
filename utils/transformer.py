@@ -156,11 +156,11 @@ examples = [
                     ;"""
     },
     {
-        "input": "How many student customers do we have?",
+        "input": "How many student like customers do we have?",
         "query": """
                     SELECT COUNT(DISTINCT CUSTOMER_NO) 
                     FROM BOT_CUSTOMER 
-                    WHERE TARGET = 'STUDENT';"""
+                    WHERE TARGET like 'STUDENT';"""
     },
     { 
         "input": "Give a list of all targets to identify different customers",
