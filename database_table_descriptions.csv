@@ -1,4 +1,4 @@
 Table,Description
-CB_ACCOUNTS,"Stores information about the bank accounts that exist within the bank, including a unique account number(ACCOUNT_NUMBER), CATEGORY (saving, current,etc),transaction dates, CUSTOMER NUMBER,OPENING DATES AND MORE."
-CB_CUSTOMERS,"Contains details of each customer of the bank, including CUSTOMER_NO(CUSTOMER NUMBER), names, type of customer, joining date, birth date and more demographic features.."
+ChatbotAccounts,"Stores information about the bank accounts that exist within the bank, including a unique account number(ACCOUNT_NUMBER), CATEGORY (saving, current,etc),transaction dates, CUSTOMER NUMBER,OPENING DATES AND MORE."
+BOT_CUSTOMER,"Contains details of each customer of the bank, including CUSTOMER_NO(CUSTOMER NUMBER), names, type of customer, joining date, birth date and more demographic features.."
 DG_DATA,"This table captures detailed records of customer transactions made through digital channels. Each entry represents an individual transaction, including information about the customer, transaction type, and financial details."

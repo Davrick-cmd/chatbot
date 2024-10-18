@@ -68,6 +68,10 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 
+
+
+
+
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
     with st.chat_message(message["role"], avatar='img/user-icon.png' if message["role"] == "user" else 'img/bkofkgl.png'):
@@ -128,4 +132,17 @@ if prompt := st.chat_input("What is up?"):
    
     st.session_state.messages.append({"role": "assistant", "content": response if isinstance(response, str) else response[0]})
 
+# Informational Section - Display only if there are no messages
+if len(st.session_state.messages) == 0:
+    st.markdown("""
+        ### How can I help you?
+        <ul>
+            <li>🗃️ <strong>Data Queries</strong>: Ask about customer, account, or transaction data.</li>
+            <li>📥 <strong>Download Results</strong>: Get your query results in CSV format.</li>
+            <li>📊 <strong>Data Visualizations</strong>: Get charts summarizing your data.</li>
+            <li>📈 <strong>Data Insights</strong>: Gain insights on churn, channel usage, performance indicators, and more.</li>
+            <li>🔮 <strong>Forecasting & Predictions</strong>: Get forecasts and predictions based on historical data trends.</li>
+            <li>📝 <strong>Chat Assistance</strong>: Get answers about the bank's business processes, news, and more.</li>
+        </ul>
+    """, unsafe_allow_html=True)
 

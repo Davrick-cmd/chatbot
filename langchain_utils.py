@@ -40,7 +40,8 @@ import json
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 llm_4 = ChatOpenAI(model="gpt-4o", temperature=0.0)
-tables_to_include = ['CB_ACCOUNTS', 'CB_CUSTOMERS']
+llm_tune01 = ChatOpenAI(model="ft:gpt-4o-2024-08-06:personal:tune01:AJ4Ea2SL",temperature=0.0)
+tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER','DG_DATA']
 db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
         include_tables=tables_to_include
@@ -49,7 +50,7 @@ db = SQLDatabase.from_uri(
 @st.cache_resource
 def get_chain():
     print("Creating chain\n")
-    tables_to_include = ['CB_ACCOUNTS', 'CB_CUSTOMERS','DG_DATA']
+    tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER','DG_DATA']
 
     db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
@@ -58,7 +59,7 @@ def get_chain():
 
 
     # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
-    generate_query = create_sql_query_chain(llm, db, final_prompt) 
+    generate_query = create_sql_query_chain(llm_tune01, db, final_prompt) #using a fine tuned model
     execute_query = QuerySQLDataBaseTool(db=db)
 
     engine = create_engine(
@@ -277,7 +278,7 @@ def invoke_chain(question, messages):
         return answer 
     
     chain = get_chain()
-    response = chain.invoke({"question": question, "top_k": 5, "messages": history.messages})
+    response = chain.invoke({"question": question, "top_k": 3, "messages": history.messages})
     history.add_user_message(question)
     history.add_ai_message(response)
     return response
@@ -351,6 +352,10 @@ def check_against_definition(question, query, chat_history,table_names):
     - validated_query (str): The validated or adjusted query if it was out of line with definitions.
     """
 
+    if len(table_names) == 0:
+        table_names = tables_to_include
+    
+
     temp_db =  SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
         include_tables=table_names)
@@ -358,7 +363,7 @@ def check_against_definition(question, query, chat_history,table_names):
     table_info = temp_db.get_table_info()
 
     # Use the LLM to check and potentially correct the query
-    validated_query_chain = (check_query_prompt | llm | StrOutputParser())
+    validated_query_chain = (check_query_prompt | llm_tune01 | StrOutputParser())
     
     # Invoke the chain and get the validated or corrected query
     validated_query = validated_query_chain.invoke({"question": question,"query":query,"messages":chat_history,"table_info":table_info})
@@ -367,4 +372,4 @@ def check_against_definition(question, query, chat_history,table_names):
 
     print(f"LLM validated or corrected query against Definitions: {validated_query}\n")
     
-    return validated_query,chat_history
+    return query,chat_history
