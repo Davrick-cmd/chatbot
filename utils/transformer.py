@@ -56,7 +56,7 @@ examples = [
     },
     {
         "input": "How many customers are in the SME segment?",
-        "query": """-- Segment '2' corresponds to SME (Small and Medium Enterprises) customers.
+        "query": """-- Segment 'SME' corresponds to SME (Small and Medium Enterprises) customers.
                         SELECT COUNT(DISTINCT c.CUSTOMER_NO)
                         FROM BOT_CUSTOMER c
                         JOIN ChatbotAccounts a
@@ -463,32 +463,11 @@ examples = [
         """
     },
     {
-        "input":"Give a list of retail customers who transacted on digital channels in the last 3 months",
+        "input":"How many transactions were made between January 1, 2024, and January 31, 2024?",
         "query":"""
-                -- Optimized RETAILS Query
-                WITH Transactions AS (
-                    SELECT f.DEBIT_CUSTOMER AS CUSTOMER, b.CHANNEL, f.AUTH_DATE, c.SEGMENT
-                    FROM T24_FT_HIS f
-                    LEFT JOIN V_T24_FT_TXN_TYPE_CHANNELS b ON f.TRANSACTION_TYPE = b.TRANSACTION_TYPE
-                    LEFT JOIN T24_CUSTOMERS_ALL c ON f.DEBIT_CUSTOMER = c.CUSTOMER_NO
-                    WHERE b.CHANNEL IN ('IB', 'MOBILE APP', 'MOBISERVE', 'BK YACU', 'MTN PULL', 'MTN PUSH', 'AIRTEL PUSH', 'E-COMMERCE', 'POS')
-                    AND f.AUTH_DATE BETWEEN '20240401' AND '20240630'
-                    AND c.SEGMENT = '1'
-                    
-                    UNION ALL
-
-                    SELECT f.CREDIT_CUSTOMER AS CUSTOMER, b.CHANNEL, f.AUTH_DATE, c.SEGMENT
-                    FROM T24_FT_HIS f
-                    LEFT JOIN V_T24_FT_TXN_TYPE_CHANNELS b ON f.TRANSACTION_TYPE = b.TRANSACTION_TYPE
-                    LEFT JOIN T24_CUSTOMERS_ALL c ON f.CREDIT_CUSTOMER = c.CUSTOMER_NO
-                    WHERE b.CHANNEL IN ('IB', 'MOBILE APP', 'MOBISERVE', 'BK YACU', 'MTN PULL', 'MTN PUSH', 'AIRTEL PUSH', 'E-COMMERCE', 'POS')
-                    AND f.AUTH_DATE BETWEEN '20240401' AND '20240630'
-                    AND c.SEGMENT = '1'
-                )
-
-                SELECT DISTINCT CUSTOMER
-                FROM Transactions;
-
+                SELECT COUNT(*) 
+                FROM [BI_DB].[dbo].[BOT_FUNDS_TRANSFER]
+                WHERE TRANSACTION_DATE BETWEEN '2024-01-01' AND '2024-01-31';
             """
     }
 ]
