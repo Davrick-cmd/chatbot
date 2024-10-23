@@ -56,7 +56,7 @@ examples = [
     },
     {
         "input": "How many customers are in the SME segment?",
-        "query": """-- Segment '2' corresponds to SME (Small and Medium Enterprises) customers.
+        "query": """-- Segment 'SME' corresponds to SME (Small and Medium Enterprises) customers.
                         SELECT COUNT(DISTINCT c.CUSTOMER_NO)
                         FROM BOT_CUSTOMER c
                         JOIN ChatbotAccounts a
@@ -461,6 +461,14 @@ examples = [
                     a.LAST_TRANS_DATE < DATEADD(DAY, -330, GETDATE());
 
         """
+    },
+    {
+        "input":"How many transactions were made between January 1, 2024, and January 31, 2024?",
+        "query":"""
+                SELECT COUNT(*) 
+                FROM [BI_DB].[dbo].[BOT_FUNDS_TRANSFER]
+                WHERE TRANSACTION_DATE BETWEEN '2024-01-01' AND '2024-01-31';
+            """
     }
 ]
 
