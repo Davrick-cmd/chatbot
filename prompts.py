@@ -33,7 +33,8 @@ definitions = {
     "Unclaimed Customer": "A customer whose only accounts are unclaimed current accounts, with no active, inactive, dormant, or dom closed accounts present",
     "Churn Customer": "A customer who has only DomClosed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment.",
     "Churn Rate": " it is the percentage of Churn Customers over total number of customers (according to our definition).",
-    "EMPLOYMENT STATUS": "Whether a customer is employed, unemployed, retired, students, etc, determined using EMPLOYMENT_STATUS IN CUSTOMER TABLE"
+    "EMPLOYMENT STATUS": "Whether a customer is employed, unemployed, retired, students, etc, determined using EMPLOYMENT_STATUS IN CUSTOMER TABLE",
+    "BK Card": "A BK Card is defined by specific card number prefixes, which include ISO_TRUN_PAN values of ('446999', '471375', '471376', '471377', '512952', '517315', '526111', '532018', '534617', '513904')."
 }
 
 # Convert the definitions dictionary to a string format
