@@ -13,3 +13,4 @@ protobuf==3.20.3
 pyodbc
 matplotlib
 seaborn
+prophet
