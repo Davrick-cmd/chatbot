@@ -495,6 +495,21 @@ examples = [
                 FROM DistinctCounts;
 
             """
+    },
+    {
+        "input":"How many customers did we have by the end of septmenber this year?",
+        "query":"""
+                SELECT COUNT(DISTINCT c.CUSTOMER_NO)
+                FROM BOT_CUSTOMER c
+                JOIN ChatbotAccounts a
+                ON c.CUSTOMER_NO = a.CUSTOMER_NUMBER
+                WHERE a.CATEGORY NOT IN ('1080', '1031')
+                AND SUBSTRING(a.CATEGORY, 1, 1) IN ('1', '6')
+                AND a.OPENING_DATE <= EOMONTH(CONVERT(DATETIME, CAST(YEAR(GETDATE()) AS VARCHAR(4)) + '-09-01'), 0);
+
+
+            """
+
     }
 
 ]

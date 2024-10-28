@@ -14,3 +14,7 @@ pyodbc
 matplotlib
 seaborn
 prophet
+bokeh
+scikit-learn
+streamlit_pandas_profiling
+

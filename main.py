@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 from io import StringIO
 import ast
+import base64
 
+st.cache_data.clear()
 
 
 
@@ -16,7 +18,7 @@ st.set_page_config(layout="wide",
                     )
 from openai import OpenAI
 
-from langchain_utils import invoke_chain,create_chart
+from langchain_utils import invoke_chain,create_chart,create_interactive_visuals
 
 
 
@@ -78,7 +80,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Accept user input
-if prompt := st.chat_input("Ask a question or request data insights..."):
+if prompt := st.chat_input("What is up?"):
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
     # Display user message in chat message container
@@ -102,17 +104,30 @@ if prompt := st.chat_input("Ask a question or request data insights..."):
                     href = response[1]
                     # Display the download link in the markdown
                     st.markdown(href, unsafe_allow_html=True)
-  
-                    # Split the string into a list of values
-                    # results_list = ast.literal_eval(response[2])
 
-                    try:
-                        if response[2]:  # Check if response[4] is not empty or None
-                            results_list = ast.literal_eval(response[2])
-                        else:
-                            results_list = []  # Return an empty list if response[4] is empty
-                    except (ValueError, SyntaxError):
-                        results_list = []  # Return an empty list if ast.literal_eval fails
+                    # Proceed only if href is not empty
+                    if href:
+                        try:
+                            # Step 1: Extract the base64 part
+                            base64_data = href.split("base64,")[1].split('"')[0]
+
+                            # Step 2: Decode the base64 data
+                            csv_data = base64.b64decode(base64_data).decode("utf-8")
+
+                            # Step 3: Convert CSV data to DataFrame
+                            df = pd.read_csv(StringIO(csv_data))
+                            
+                            # Display DataFrame
+                            st.write(df)
+                            
+                            # Call create_interactive_visuals only if df is not empty
+                            if not df.empty:
+                                create_interactive_visuals(df)
+
+                        except (IndexError, ValueError) as e:
+                            st.error("Failed to process CSV data. Please check the href content.")
+                    else:
+                        pass
 
                     try:
                         if response[4]:  # Check if response[4] is not empty or None
@@ -124,11 +139,11 @@ if prompt := st.chat_input("Ask a question or request data insights..."):
                     data_columns = ast.literal_eval(response[5])
 
                     # Convert to DataFrame
-                    df = pd.DataFrame(results_list)
-                    if response[3] == "none" or len(results_list) < 3 or len(results_list) > 24:
+          
+                    if response[3] == "none" or len(df) < 3 or len(df) > 24:
                         print("No chart needed, End of Chain\n")
                     else:
-                        create_chart(response[3],results_list,column_names,data_columns)
+                        create_chart(response[3],df,column_names,data_columns)
    
     st.session_state.messages.append({"role": "assistant", "content": response if isinstance(response, str) else response[0]})
 
@@ -145,4 +160,3 @@ if len(st.session_state.messages) == 0:
             <li>📝 <strong>Chat Assistance</strong>: Get answers about the bank's business processes, news, and more.</li>
         </ul>
     """, unsafe_allow_html=True)
-

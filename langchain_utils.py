@@ -6,6 +6,8 @@ import base64
 import matplotlib.pyplot as plt
 import seaborn as sns
 import altair as alt
+from streamlit_pandas_profiling import st_profile_report
+from ydata_profiling import ProfileReport
 
 import ast
 
@@ -37,6 +39,12 @@ from prompts import final_prompt, answer_prompt,input_prompt,check_query_prompt
 import streamlit as st
 from sqlalchemy import create_engine, text
 import json
+
+
+# from pycaret.utils import get_config
+from bokeh.plotting import figure
+
+
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 llm_4 = ChatOpenAI(model="gpt-4o", temperature=0.0)
@@ -335,6 +343,58 @@ def create_chart(chart_type, data,column_names,data_columns):
         st.pyplot(plt)  # Display the figure
     else:
         pass
+
+
+
+
+
+
+
+
+
+
+def create_interactive_visuals(data, data_columns, target_column=None):
+    """
+    Create interactive visuals using pandas_profiling and Bokeh for the given dataset.
+    
+    Args:
+        data (DataFrame or list): The data to be used for visualization.
+        data_columns (list): The column names for the DataFrame.
+        target_column (str): The target column for classification problems.
+    """
+    # Convert data to a DataFrame if it's in list format
+    if isinstance(data, list):
+        df = pd.DataFrame(data, columns=data_columns)
+    elif isinstance(data, pd.DataFrame):
+        df = data
+    else:
+        st.error("Data format is not supported for chart creation.")
+        return
+
+    # Generate EDA using pandas_profiling
+    profile = ProfileReport(df, title="Exploratory Data Analysis", explorative=True)
+    
+    # Display the EDA report in Streamlit
+    st.subheader("Exploratory Data Analysis Report")
+    st_profile_report(profile)
+
+    # Create interactive visualizations with Bokeh
+    # Example: Create a simple scatter plot using Bokeh
+    if target_column and len(df[target_column].unique()) <= 10:  # For categorical targets
+        p = figure(title="Scatter Plot", x_axis_label=df.columns[0], y_axis_label=df.columns[1])
+        p.scatter(x=df[df.columns[0]], y=df[df.columns[1]], size=10, color="navy", alpha=0.5)
+
+        # Show the plot
+        st.bokeh_chart(p)
+
+
+
+
+
+
+
+
+
 
 
 def check_against_definition(question, query, chat_history,table_names):
