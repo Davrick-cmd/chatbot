@@ -17,4 +17,5 @@ prophet
 bokeh
 scikit-learn
 streamlit_pandas_profiling
+supabase
 

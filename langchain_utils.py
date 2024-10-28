@@ -353,7 +353,7 @@ def create_chart(chart_type, data,column_names,data_columns):
 
 
 
-def create_interactive_visuals(data, data_columns, target_column=None):
+def create_interactive_visuals(data, target_column=None):
     """
     Create interactive visuals using pandas_profiling and Bokeh for the given dataset.
     
@@ -364,7 +364,7 @@ def create_interactive_visuals(data, data_columns, target_column=None):
     """
     # Convert data to a DataFrame if it's in list format
     if isinstance(data, list):
-        df = pd.DataFrame(data, columns=data_columns)
+        df = pd.DataFrame(data)
     elif isinstance(data, pd.DataFrame):
         df = data
     else:
