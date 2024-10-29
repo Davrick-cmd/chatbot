@@ -13,3 +13,9 @@ protobuf==3.20.3
 pyodbc
 matplotlib
 seaborn
+prophet
+bokeh
+scikit-learn
+streamlit_pandas_profiling
+supabase
+

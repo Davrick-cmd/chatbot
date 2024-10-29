@@ -463,13 +463,55 @@ examples = [
         """
     },
     {
-        "input":"How many transactions were made between January 1, 2024, and January 31, 2024?",
+        "input":"How many transactions were made between January 1, 2024, and June 30, 2024?",
         "query":"""
                 SELECT COUNT(*) 
-                FROM [BI_DB].[dbo].[BOT_FUNDS_TRANSFER]
-                WHERE TRANSACTION_DATE BETWEEN '2024-01-01' AND '2024-01-31';
+                FROM BOT_FUNDS_TRANSFER
+                WHERE TRANSACTION_DATE BETWEEN '2024-01-01' AND '2024-06-30';
             """
+    },
+    {
+        "input":"Give me the average charges per customer on ATM withdraws using BK cards?",
+        "query":"""
+                ------The average charges per customer on ATM withdrawals---------
+                WITH DistinctCounts AS (
+                    SELECT 
+                        SUM(CAST(a.LOCAL_CHARGE_AMT AS DECIMAL(18, 1))) AS DistinctTransactionCount,
+                        COUNT(DISTINCT b.RECID) AS DistinctIndividualCustomerCount
+                    FROM BOT_FUNDS_TRANSFER a
+                    LEFT JOIN T24_CUSTOMERS_ALL b ON a.DEBIT_CUSTOMER_NO = b.RECID
+                    LEFT JOIN T24_CUSTOMERS_ALL c ON a.CREDIT_CUSTOMER_NO = c.RECID
+                    WHERE 
+                        TRANSACTION_TYPE IN ('ACAW', 'ACAV') 
+                        AND SUBSTRING(ISO_TRUN_PAN, 1, 6) IN ('446999', '471375', '471376', '471377', '512952', 
+                                                            '517315', '526111', '532018', '534617', '513904') 
+                        AND CHANNEL LIKE 'ATM' 
+                        AND a.TRANSACTION_DATE >= CAST(CONCAT(YEAR(GETDATE()), '-01-01') AS DATE) -- Start of the current year
+                )
+                SELECT 
+                    DistinctTransactionCount,
+                    DistinctIndividualCustomerCount,
+                    DistinctTransactionCount * 1.0 / NULLIF(DistinctIndividualCustomerCount, 0) AS AverageTransactionsPerIndividual
+                FROM DistinctCounts;
+
+            """
+    },
+    {
+        "input":"How many customers did we have by the end of septmenber this year?",
+        "query":"""
+                SELECT COUNT(DISTINCT c.CUSTOMER_NO)
+                FROM BOT_CUSTOMER c
+                JOIN ChatbotAccounts a
+                ON c.CUSTOMER_NO = a.CUSTOMER_NUMBER
+                WHERE a.CATEGORY NOT IN ('1080', '1031')
+                AND SUBSTRING(a.CATEGORY, 1, 1) IN ('1', '6')
+                AND a.OPENING_DATE <= EOMONTH(CONVERT(DATETIME, CAST(YEAR(GETDATE()) AS VARCHAR(4)) + '-09-01'), 0);
+
+
+            """
+
     }
+
 ]
 
 def transform_to_jsonl(input_data_list, output_file, table_info_holder='', definitions_string=''):
