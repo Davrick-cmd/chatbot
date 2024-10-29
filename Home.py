@@ -8,6 +8,7 @@ st.set_page_config(layout="wide", page_title="DataManagement AI", page_icon="img
 from supabase import create_client, Client
 from predictions import show_predictions  # import the show_predictions function
 from analytics import show_analytics      # import the show_analytics function
+from blog_home import blog_home
 import base64
 
 # Page configuration
@@ -21,6 +22,9 @@ def init_connection() -> Client:
     return create_client(url, key)
 
 supabase = init_connection()
+
+
+# st.write("Session State:", st.session_state)
 
 # # Initialize session state variables if they don't exist
 
@@ -120,35 +124,30 @@ def login_page():
 
 # Main App Page with Sidebar Navigation
 def main_page():
-    if st.session_state["authenticated"]:
-        # Sidebar with custom-styled page selectors
-
-        st.sidebar.title(f"Welcome, {st.session_state['firstname']}!")
-        
-        # Sidebar radio buttons styled as page selectors
+    # Check if authenticated
+    if st.session_state.get("authenticated", False):
+        # Sidebar navigation
+        st.sidebar.title(f"Welcome, {st.session_state.get('firstname', 'User')}!")
         st.session_state["page"] = st.sidebar.radio(
             "Navigation",
-            ["Home", "Analytics", "Predictions"],index=1
+            ["Home", "Analytics", "Predictions"], index=1
         )
 
         # Logout button at the bottom of the sidebar
         st.sidebar.write("---")
         if st.sidebar.button("Logout"):
             logout()
-        
-        # Main content based on selected page
+        # Render selected page
         if st.session_state["page"] == "Home":
-            st.title("DataManagement AI Home")
-            st.write("Explore analytics and data-driven insights with ease.")
-        
-        elif st.session_state["page"] == "Analytics":
-            show_analytics()  # Calls the function from analytics.py
-        
-        elif st.session_state["page"] == "Predictions":
-            show_predictions()  # Calls the function from predictions.py
+            blog_home()
 
+        elif st.session_state["page"] == "Analytics":
+            show_analytics()
+
+        elif st.session_state["page"] == "Predictions":
+            show_predictions()
     else:
-        login_page()  # Redirects to login page if not authenticated
+        login_page()  # Redirect to login if not authenticated
 
 # Main app execution
 if __name__ == "__main__":

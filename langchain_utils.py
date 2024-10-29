@@ -372,26 +372,11 @@ def create_interactive_visuals(data, target_column=None):
         return
 
     # Generate EDA using pandas_profiling
-    profile = ProfileReport(df, title="Exploratory Data Analysis", explorative=True)
+    profile = ProfileReport(df, title="Exploratory Data Analysis", explorative=True,html = {"minify_html": True,"navbar_show": True,"style":{"theme": "flatly"}})
     
     # Display the EDA report in Streamlit
     st.subheader("Exploratory Data Analysis Report")
     st_profile_report(profile)
-
-    # Create interactive visualizations with Bokeh
-    # Example: Create a simple scatter plot using Bokeh
-    if target_column and len(df[target_column].unique()) <= 10:  # For categorical targets
-        p = figure(title="Scatter Plot", x_axis_label=df.columns[0], y_axis_label=df.columns[1])
-        p.scatter(x=df[df.columns[0]], y=df[df.columns[1]], size=10, color="navy", alpha=0.5)
-
-        # Show the plot
-        st.bokeh_chart(p)
-
-
-
-
-
-
 
 
 
