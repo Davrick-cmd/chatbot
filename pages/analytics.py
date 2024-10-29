@@ -7,6 +7,7 @@ import base64
 # Check if the user is logged in
 if "authenticated" not in st.session_state or not st.session_state.username:
     st.error("You need to log in to access this page.")
+    st.switch_page('app.py')
     st.stop()  # Stop execution of this page
 
 
@@ -59,7 +60,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Accept user input for Analytics Chatbot
-if prompt := st.chat_input("What is up?"):
+if prompt := st.chat_input(f"Hi {st.session_state.firstname}, what analytics insights can I help you explore today?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     
     with st.chat_message("user", avatar='img/user-icon.png'):

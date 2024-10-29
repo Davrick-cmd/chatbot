@@ -18,13 +18,24 @@ def init_connection() -> Client:
 
 supabase = init_connection()
 
-# Initialize session states for user authentication and page navigation
+
+
+# Initialize session state variables if they don't exist
 if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
+    st.session_state["authenticated"] = False  # Default to not authenticated
 if "username" not in st.session_state:
-    st.session_state["username"] = None
+    st.session_state["username"] = ""  # Default to an empty username
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []  # Initialize messages list
+if "openai_model" not in st.session_state:
+    st.session_state["openai_model"] = "gpt-4o-mini"  # Default model
+if "Link" not in st.session_state:
+    st.session_state["Link"] = ''  # Default Link
 if "page" not in st.session_state:
-    st.session_state["page"] = "Login"
+    st.session_state["page"] = "Login"  # Default to Login page
+
+if "firstname" not in st.session_state:
+    st.session_state['firstname']=None
 
 # Logout function
 def logout():
@@ -32,10 +43,12 @@ def logout():
     st.session_state["authenticated"] = False
     st.session_state["username"] = None
     st.session_state["page"] = "Login"
+    st.session_state['firstname']=None
     st.success("Successfully logged out!")
     st.rerun()  # Rerun to refresh the app state
 
 # Authentication Page with custom login and signup forms
+# @st.cache_resource
 def login_page():
     st.title("Welcome to DataManagement AI 📊")
     st.subheader("Your AI-driven data management partner")
@@ -55,6 +68,9 @@ def login_page():
                     response = supabase.auth.sign_in_with_password({"email": login_username, "password": login_password})
                     st.session_state["authenticated"] = True
                     st.session_state["username"] = response.user.email
+                    user_id = response.user.id
+                    profile_response = supabase.from_("profiles").select("first_name, last_name").eq("id", user_id).execute()
+                    st.session_state['firstname']  = profile_response.data[0]["first_name"]
                     st.session_state["page"] = "Analytics"  # Set page to Analytics after login
                     st.success(f"Welcome, {st.session_state['username']}! Redirecting to Analytics...")
                     st.switch_page("pages/analytics.py")
@@ -85,12 +101,13 @@ def login_page():
                 st.warning("Please fill in all fields.")
 
 # Dashboard/Homepage for Authenticated Users
+# @st.cache_resource
 def dashboard():
-    st.title("DataManagement AI Dashboard")
+    st.title("DataManagement AI")
     st.write("Explore analytics and data-driven insights with ease.")
 
     # Logout button in the main content area
-    if st.button("Logout"):
+    if st.button("Logout",use_container_width=True):
         logout()  # Call the logout function
 
 
