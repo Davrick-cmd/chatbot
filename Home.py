@@ -11,6 +11,8 @@ from analytics import show_analytics
 from blog_home import blog_home
 from utils.auth import AuthManager
 from pathlib import Path
+from utils.db import DatabaseManager
+from admin import admin_dashboard
 
 
 # Constants
@@ -26,6 +28,8 @@ def init_session_state():
         "page": "Login",
         "firstname": None,
         "lastname": None,
+        "role": None,
+        "status": None,
         
         # Chatbot states
         "messages": [],
@@ -53,16 +57,27 @@ class Navigation:
             # Profile section
             with st.expander(f"👤 {st.session_state.get('firstname', 'User')} {st.session_state.get('lastname', '')}!"):
                 st.write(f"Email: {st.session_state['username']}")
+                st.write(f"Role: {st.session_state.get('role')}")
+
                 # Add more profile info here
             
+            # Check for admin access and add admin button
+            db = DatabaseManager()
+            
             # Navigation menu with icons
+            options = [
+                "🏠 Home",
+                "📊 Analytics",
+                "🔮 Predictions"
+            ]
+            
+            # Only add Admin option if user is admin
+            if db.is_admin(st.session_state.get("username")):
+                options.append("👑 Admin")
+                
             st.session_state["page"] = st.radio(
                 "Navigation",
-                options=[
-                    "🏠 Home",
-                    "📊 Analytics",
-                    "🔮 Predictions"
-                ],
+                options=options,
                 index=1,
                 label_visibility="collapsed"
             )
@@ -78,6 +93,7 @@ class Navigation:
             if st.button("🚪 Logout", type="primary"):
                 AuthManager.logout()
 
+
 def main_page():
     if st.session_state.get("authenticated", False):
         Navigation.render_sidebar()
@@ -86,7 +102,8 @@ def main_page():
         pages = {
             "🏠 Home": blog_home,
             "📊 Analytics": show_analytics,
-            "🔮 Predictions": show_predictions
+            "🔮 Predictions": show_predictions,
+            "👑 Admin": admin_dashboard
         }
         
         current_page = st.session_state["page"]

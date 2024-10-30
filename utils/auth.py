@@ -69,9 +69,15 @@ class AuthManager:
     def _handle_login(self, username: str, password: str):
         if username and password:
             user_data = self.db.verify_user(username, password)
-            print("user_data", user_data)
             if user_data:
-                first_name, last_name, role, department = user_data
+                first_name, last_name, department,role, status,*_ = user_data
+                if status == 'pending':
+                    st.error("Your account is pending approval. Please wait for admin confirmation.")
+                    return
+                
+                # Update last signin time
+                self.db.update_last_signin(username)
+                
                 st.session_state["authenticated"] = True
                 st.session_state["username"] = username
                 st.session_state["firstname"] = first_name
@@ -91,7 +97,7 @@ class AuthManager:
         if all([username, password, confirm_password, first_name, last_name]):
             if password == confirm_password:
                 if self.db.create_user(username, password, first_name, last_name):
-                    st.success("Signup successful! You can now login.")
+                    st.success("Account created successfully! Please wait for admin approval before logging in.")
                 else:
                     st.error("Email already exists")
             else:
