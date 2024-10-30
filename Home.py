@@ -1,17 +1,18 @@
 # app.py
 import streamlit as st
-
-st.set_page_config(layout="wide", page_title="DataManagement AI", page_icon="img/bkofkgl.png",
-                   menu_items={'Get Help': 'mailto:john@example.com',
-                               'About': "#### This is DataManagement cool app!"})
-
-from supabase import create_client, Client
-from predictions import show_predictions  # import the show_predictions function
-from analytics import show_analytics      # import the show_analytics function
-from blog_home import blog_home
-import base64
+from utils.config import AppConfig
 
 # Page configuration
+AppConfig.setup_page()
+
+from supabase import create_client, Client
+import base64
+from predictions import show_predictions
+from analytics import show_analytics
+from blog_home import blog_home
+from utils.auth import AuthManager
+
+
 
 
 # Initialize Supabase Connection
@@ -23,132 +24,83 @@ def init_connection() -> Client:
 
 supabase = init_connection()
 
-
-# st.write("Session State:", st.session_state)
-
-# # Initialize session state variables if they don't exist
-
-# login session variables
-if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False  # Default to not authenticated
-if "username" not in st.session_state:
-    st.session_state["username"] = ""  # Default to an empty username
-if "page" not in st.session_state:
-    st.session_state["page"] = "Login"  # Default to Login page
-if "firstname" not in st.session_state:
-    st.session_state['firstname']=None
-
-# Chatbot Session variables
-
-if "messages" not in st.session_state:
-    st.session_state["messages"] = []  # Initialize messages list
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-4o-mini"  # Default model
-if "Link" not in st.session_state:
-    st.session_state["Link"] = ''  # Default Link
-
-# Predicition sessions variables
-
-if "forecast_results" not in st.session_state:
-    st.session_state['forecast_results'] = None
-if "model_option" not in st.session_state:
-    st.session_state['model_option'] = "Prophet"
-if "periods" not in st.session_state:
-    st.session_state['periods'] = 30
-# Initialize session state to track the file path
-if "uploaded_file_path" not in st.session_state:
-    st.session_state['uploaded_file_path'] = None
-
-# Helper to encode background images
-def get_base64(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-# Logout function
-def logout():
-    supabase.auth.sign_out()
-    st.session_state["authenticated"] = False
-    st.session_state["username"] = ""
-    st.session_state["page"] = "Login"
-    st.session_state["firstname"] = None
-    st.success("Successfully logged out!")
-    st.rerun()
-
-# Authentication Page with custom login and signup forms
-def login_page():
-    st.markdown("<h1 class='title'>Welcome to DataManagement AI</h1>", unsafe_allow_html=True)
-    
-    tab_login, tab_signup = st.tabs(["Login", "Signup"])
-    with tab_login:
-        st.write("Please log in with your credentials:")
-        login_username = st.text_input("Email", key="login_username", placeholder="Enter your email")
-        login_password = st.text_input("Password", type="password", key="login_password", placeholder="Enter your password")
+# Initialize session state
+def init_session_state():
+    defaults = {
+        # Auth states
+        "authenticated": False,
+        "username": "",
+        "page": "Login",
+        "firstname": None,
         
-        if st.button("Login"):
-            if login_username and login_password:
-                try:
-                    response = supabase.auth.sign_in_with_password({"email": login_username, "password": login_password})
-                    st.session_state["authenticated"] = True
-                    st.session_state["username"] = response.user.email
-                    user_id = response.user.id
-                    profile_response = supabase.from_("profiles").select("first_name, last_name").eq("id", user_id).execute()
-                    st.session_state["firstname"] = profile_response.data[0]["first_name"]
-                    st.session_state["page"] = "Analytics"
-                    st.success(f"Welcome, {st.session_state['username']}! Redirecting to Analytics...")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Login failed: {str(e)}")
-            else:
-                st.warning("Please enter both email and password.")
-    
-    with tab_signup:
-        st.write("Create a new account:")
-        signup_username = st.text_input("Email", key="signup_username", placeholder="Enter your email")
-        signup_password = st.text_input("Password", type="password", key="signup_password", placeholder="Create a password")
-        confirm_password = st.text_input("Confirm Password", type="password", key="confirm_password", placeholder="Confirm your password")
+        # Chatbot states
+        "messages": [],
+        "openai_model": "gpt-4-mini",
+        "Link": '',
         
-        if st.button("Sign up"):
-            if signup_username and signup_password and confirm_password:
-                if signup_password == confirm_password:
-                    try:
-                        supabase.auth.sign_up({"email": signup_username, "password": signup_password})
-                        st.success("Signup successful! Please log in.")
-                        st.experimental_rerun()
-                    except Exception as e:
-                        st.error(f"Signup failed: {str(e)}")
-                else:
-                    st.warning("Passwords do not match.")
-            else:
-                st.warning("Please fill in all fields.")
+        # Prediction states
+        "forecast_results": None,
+        "model_option": "Prophet",
+        "periods": 30,
+        "uploaded_file_path": None
+    }
+    
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-# Main App Page with Sidebar Navigation
+class Navigation:
+    @staticmethod
+    def render_sidebar():
+        with st.sidebar:
+            st.title(f"Welcome, {st.session_state.get('firstname', 'User')}!")
+            
+            # Navigation menu with icons
+            st.session_state["page"] = st.radio(
+                "Navigation",
+                options=[
+                    "🏠 Home",
+                    "📊 Analytics",
+                    "🔮 Predictions"
+                ],
+                index=1,
+                format_func=lambda x: x.split()[1]  # Remove emoji from label
+            )
+            
+            # Profile section
+            with st.expander("👤 Profile"):
+                st.write(f"Email: {st.session_state['username']}")
+                # Add more profile info here
+            
+            st.divider()
+            
+            # Settings and Help
+            with st.expander("⚙️ Settings"):
+                st.toggle("Dark Mode")
+                st.selectbox("Language", ["English", "Spanish", "French"])
+            
+            # Logout button
+            if st.button("🚪 Logout", type="primary"):
+                AuthManager.logout(supabase)
+
 def main_page():
-    # Check if authenticated
     if st.session_state.get("authenticated", False):
-        # Sidebar navigation
-        st.sidebar.title(f"Welcome, {st.session_state.get('firstname', 'User')}!")
-        st.session_state["page"] = st.sidebar.radio(
-            "Navigation",
-            ["Home", "Analytics", "Predictions"], index=1
-        )
-
-        # Logout button at the bottom of the sidebar
-        st.sidebar.write("---")
-        if st.sidebar.button("Logout"):
-            logout()
-        # Render selected page
-        if st.session_state["page"] == "Home":
-            blog_home()
-
-        elif st.session_state["page"] == "Analytics":
-            show_analytics()
-
-        elif st.session_state["page"] == "Predictions":
-            show_predictions()
+        Navigation.render_sidebar()
+        
+        # Route to appropriate page
+        pages = {
+            "🏠 Home": blog_home,
+            "📊 Analytics": show_analytics,
+            "🔮 Predictions": show_predictions
+        }
+        
+        current_page = st.session_state["page"]
+        if current_page in pages:
+            pages[current_page]()
+            
     else:
-        login_page()  # Redirect to login if not authenticated
+        AuthManager.render_login_page(supabase)
 
-# Main app execution
 if __name__ == "__main__":
+    init_session_state()
     main_page()
