@@ -16,7 +16,7 @@ from pathlib import Path
 
 # Constants
 ASSETS_DIR = Path("img")
-LOGO = ASSETS_DIR / "bklogo.png"
+LOGO = ASSETS_DIR / "bklogo1.png"
 
 # Initialize Supabase Connection
 @st.cache_resource

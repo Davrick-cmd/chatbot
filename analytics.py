@@ -45,28 +45,14 @@ def handle_response(response: Union[str, List]):
         
         if df is not None and not df.empty:
             # Create a container for visualizations
-            viz_container = st.container()
+
             
-            # Create columns for buttons
-            col1, col2 = st.columns(2)
-            
-            # Interactive visualization button in first column
-            with col1:
-                if st.button("Generate Interactive Visualizations 📊"):
-                    with viz_container:
-                        with st.spinner("Generating interactive visualizations..."):
-                            # Wait for the visualization to complete
-                            visuals = create_interactive_visuals(df)
-                            if visuals:
-                                st.success("Visualizations generated successfully!")
-            
-            # Chart generation logic in second column
-            with col2:
-                column_names = ast.literal_eval(rest[2]) if rest[2] else []
-                data_columns = ast.literal_eval(rest[3])
+ 
+            create_interactive_visuals(df)
+
                 
-                if rest[1] != "none" and 3 <= len(df) <= 24:
-                    create_chart(rest[1], df, column_names, data_columns)
+            if rest[1] != "none" and 3 <= len(df) <= 24:
+                    create_chart(rest[1], df)
     
     return message
 

@@ -7,49 +7,26 @@ class AuthManager:
             <style>
                 .title {
                     text-align: center;
-                    padding: 20px;
-                    color: #0B539D;
+                    padding: 10px;
                 }
                 .stTabs {
                     background-color: rgba(255, 255, 255, 0.1);
                     padding: 20px;
                     border-radius: 10px;
                 }
-                .stButton>button {
-                    background-color: #0B539D;
-                    color: white;
-                }
-                div[data-baseweb="tab-list"] {
-                    background-color: #0B539D20;
-                }
-                button[data-baseweb="tab"] {
-                    color: #0B539D;
-                }
-                .company-logo-container {
-                    text-align: center;
-                    padding: 20px;
-                }
-                .company-logo-container img {
-                    width: 200px;  /* Adjust size as needed */
-                }
+
+
             </style>
         """, unsafe_allow_html=True)
         
-        # Add company logo wrapped in a div
-        # st.markdown(
-        #     """
-        #     <div class="company-logo-container">
-        #         <img src="img/bklogo.png" alt="Company Logo">
-        #     </div>
-        #     """, 
-        #     unsafe_allow_html=True
-        # )
 
         col1, col2, col3 = st.columns([1,2,1])
+        with col1:
+            # Add width parameter to automatically scale the image
+            st.image("img/bklogo3.png")  # Adjust the width value as needed
+
         with col2:
-            st.image("img/bklogo.png", width=400, use_column_width=True)
-        
-        st.markdown("<h1 class='title'>Welcome to DataManagement AI</h1>", unsafe_allow_html=True)
+            st.markdown("<h1 class='title'>DataManagement AI</h1>", unsafe_allow_html=True)
         
         tab_login, tab_signup = st.tabs(["Login", "Signup"])
         
