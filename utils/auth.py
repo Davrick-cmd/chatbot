@@ -131,6 +131,7 @@ class AuthManager:
         user_id = response.user.id
         profile_response = supabase.from_("profiles").select("first_name, last_name").eq("id", user_id).execute()
         st.session_state["firstname"] = profile_response.data[0]["first_name"]
+        st.session_state["lastname"] = profile_response.data[0]["last_name"]
         st.session_state["page"] = "📊 Analytics"
     
     @staticmethod

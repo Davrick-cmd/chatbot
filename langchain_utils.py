@@ -353,30 +353,52 @@ def create_chart(chart_type, data,column_names,data_columns):
 
 
 
-def create_interactive_visuals(data, target_column=None):
+def create_interactive_visuals(data, data_columns=None, target_column=None):
     """
-    Create interactive visuals using pandas_profiling and Bokeh for the given dataset.
+    Create interactive visuals using ydata-profiling for the given dataset.
     
     Args:
         data (DataFrame or list): The data to be used for visualization.
-        data_columns (list): The column names for the DataFrame.
-        target_column (str): The target column for classification problems.
-    """
-    # Convert data to a DataFrame if it's in list format
-    if isinstance(data, list):
-        df = pd.DataFrame(data)
-    elif isinstance(data, pd.DataFrame):
-        df = data
-    else:
-        st.error("Data format is not supported for chart creation.")
-        return
-
-    # Generate EDA using pandas_profiling
-    profile = ProfileReport(df, title="Exploratory Data Analysis", explorative=True,html = {"minify_html": True,"navbar_show": True,"style":{"theme": "flatly"}})
+        data_columns (list, optional): The column names for the DataFrame.
+        target_column (str, optional): The target column for classification problems.
     
-    # Display the EDA report in Streamlit
-    st.subheader("Exploratory Data Analysis Report")
-    st_profile_report(profile)
+    Returns:
+        None: Displays the profile report in Streamlit
+    """
+    try:
+        # Convert data to a DataFrame if it's in list format
+        if isinstance(data, list):
+            df = pd.DataFrame(data, columns=data_columns) if data_columns else pd.DataFrame(data)
+        elif isinstance(data, pd.DataFrame):
+            df = data
+        else:
+            st.error("Data format is not supported for visualization. Please provide a list or DataFrame.")
+            return
+
+        # Check if DataFrame is empty
+        if df.empty:
+            st.warning("No data available for visualization.")
+            return
+
+        # Generate EDA using ydata-profiling
+        profile = ProfileReport(
+            df,
+            title="Exploratory Data Analysis",
+            explorative=True,
+            html={
+                "minify_html": True,
+                "navbar_show": True,
+                "style": {"theme": "flatly"}
+            },
+            minimal=True  # For faster processing with large datasets
+        )
+        
+        # Display the EDA report in Streamlit
+        st.subheader("Exploratory Data Analysis Report")
+        st_profile_report(profile)
+
+    except Exception as e:
+        st.error(f"An error occurred while creating visualizations: {str(e)}")
 
 
 

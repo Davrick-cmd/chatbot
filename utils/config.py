@@ -6,7 +6,7 @@ class AppConfig:
         st.set_page_config(
             layout="wide",
             page_title="DataManagement AI",
-            page_icon="img/bkofkgl.png",
+            page_icon="./img/bkofkgl.png",
             menu_items={
                 'Get Help': 'mailto:john@example.com',
                 'About': "#### This is DataManagement cool app!"
