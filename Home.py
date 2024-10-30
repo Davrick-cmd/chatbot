@@ -5,7 +5,6 @@ from utils.config import AppConfig
 # Page configuration
 AppConfig.setup_page()
 
-from supabase import create_client, Client
 import base64
 from predictions import show_predictions
 from analytics import show_analytics
@@ -17,15 +16,6 @@ from pathlib import Path
 # Constants
 ASSETS_DIR = Path("img")
 LOGO = ASSETS_DIR / "bklogo1.png"
-
-# Initialize Supabase Connection
-@st.cache_resource
-def init_connection() -> Client:
-    url = st.secrets["connections"]["supabase"]["SUPABASE_URL"]
-    key = st.secrets["connections"]["supabase"]["SUPABASE_KEY"]
-    return create_client(url, key)
-
-supabase = init_connection()
 
 # Initialize session state
 def init_session_state():
@@ -86,7 +76,7 @@ class Navigation:
             
             # Logout button
             if st.button("🚪 Logout", type="primary"):
-                AuthManager.logout(supabase)
+                AuthManager.logout()
 
 def main_page():
     if st.session_state.get("authenticated", False):
@@ -104,7 +94,8 @@ def main_page():
             pages[current_page]()
             
     else:
-        AuthManager.render_login_page(supabase)
+        auth_manager = AuthManager()
+        auth_manager.render_login_page()
 
 if __name__ == "__main__":
     init_session_state()
