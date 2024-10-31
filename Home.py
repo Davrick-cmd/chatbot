@@ -13,6 +13,8 @@ from utils.auth import AuthManager
 from pathlib import Path
 from utils.db import DatabaseManager
 from admin import admin_dashboard
+from streamlit.runtime.scriptrunner import get_script_run_ctx
+import streamlit.components.v1 as components
 
 
 # Constants
@@ -21,7 +23,23 @@ LOGO = ASSETS_DIR / "bklogo1.png"
 
 # Initialize session state
 def init_session_state():
+    # Get current session ID
+    ctx = get_script_run_ctx()
+    
+    # If this is just a browser refresh and we already have authentication
+    if (is_browser_refresh() and 
+        '_session_id' in st.session_state and 
+        'authenticated' in st.session_state and 
+        st.session_state.authenticated):
+        # Update session ID but keep other state
+        st.session_state['_session_id'] = ctx.session_id
+        return
+
+    # If it's a new session, initialize everything
     defaults = {
+        # Session tracking
+        '_session_id': ctx.session_id,
+        
         # Auth states
         "authenticated": False,
         "username": "",
@@ -47,6 +65,23 @@ def init_session_state():
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+# Add this JavaScript to prevent complete page reloads
+def inject_refresh_handler():
+    components.html(
+        """
+        <script>
+            // Intercept browser refresh
+            window.addEventListener('beforeunload', function(e) {
+                // Cancel the event
+                e.preventDefault();
+                // Chrome requires returnValue to be set
+                e.returnValue = '';
+            });
+        </script>
+        """,
+        height=0
+    )
 
 class Navigation:
     @staticmethod
@@ -102,8 +137,15 @@ class Navigation:
             if st.button("🚪 Logout", type="primary"):
                 AuthManager.logout()
 
+# Add this function to detect if it's a browser refresh
+def is_browser_refresh():
+    ctx = get_script_run_ctx()
+    return ctx.session_id != st.session_state.get('_session_id', None)
 
 def main_page():
+    # Add the refresh handler
+    inject_refresh_handler()
+    
     if st.session_state.get("authenticated", False):
         Navigation.render_sidebar()
         
@@ -117,8 +159,11 @@ def main_page():
         
         current_page = st.session_state["page"]
         if current_page in pages:
-            pages[current_page]()
-            
+            try:
+                pages[current_page]()
+            except Exception as e:
+                st.error(f"Error loading page: {str(e)}")
+                # Log the error here if needed
     else:
         auth_manager = AuthManager()
         auth_manager.render_login_page()
