@@ -37,6 +37,16 @@ class User(Base):
     approved_at = Column(DateTime, nullable=True)
     last_signin = Column(DateTime, nullable=True)  # Tracks the user's last sign-in time
 
+class AdminLog(Base):
+    __tablename__ = 'admin_logs'
+    
+    id = Column(Integer, primary_key=True)
+    admin_user = Column(String(255), nullable=False)
+    action = Column(String(100), nullable=False)
+    affected_user = Column(String(255), nullable=True)
+    details = Column(String(500), nullable=True)
+    timestamp = Column(DateTime, nullable=False, default=func.now())
+
 class DatabaseManager:
     def __init__(self):
         # Construct connection string using the defined variables
@@ -133,5 +143,63 @@ class DatabaseManager:
         session = self.Session()
         try:
             return session.query(User).all()
+        finally:
+            session.close()
+
+    def delete_user(self, user_id: int) -> bool:
+        session = self.Session()
+        try:
+            user = session.query(User).filter_by(id=user_id).first()
+            if user:
+                session.delete(user)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            print(f"Error deleting user: {str(e)}")
+            return False
+        finally:
+            session.close()
+
+    def update_user(self, user_id: int, department: str = None, role: str = None, status: str = None) -> bool:
+        session = self.Session()
+        try:
+            user = session.query(User).filter_by(id=user_id).first()
+            if user:
+                if department is not None:
+                    user.department = department
+                if role is not None:
+                    user.role = role
+                if status is not None:
+                    user.status = status
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            print(f"Error updating user: {str(e)}")
+            return False
+        finally:
+            session.close()
+
+    def log_admin_action(self, action_data):
+        """Log admin actions to the database"""
+        session = self.Session()
+        try:
+            admin_log = AdminLog(
+                admin_user=action_data['admin_user'],
+                action=action_data['action'],
+                affected_user=action_data['affected_user'],
+                details=action_data['details'],
+                timestamp=action_data['timestamp']
+            )
+            session.add(admin_log)
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            print(f"Error logging admin action: {str(e)}")
+            return False
         finally:
             session.close()

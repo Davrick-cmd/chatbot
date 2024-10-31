@@ -56,8 +56,17 @@ class Navigation:
 
             # Profile section
             with st.expander(f"👤 {st.session_state.get('firstname', 'User')} {st.session_state.get('lastname', '')}!"):
-                st.write(f"Email: {st.session_state['username']}")
-                st.write(f"Role: {st.session_state.get('role')}")
+                st.markdown("---")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**📧 Email**")
+                    st.markdown("**🏢 Department**")
+                    st.markdown("**👥 Role**")
+                with col2:
+                    st.markdown(f"`{st.session_state['username']}`")
+                    st.markdown(f"`{st.session_state.get('department', 'N/A')}`")
+                    st.markdown(f"`{st.session_state.get('role', 'N/A')}`")
+                st.markdown("---")
 
                 # Add more profile info here
             
