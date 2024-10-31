@@ -141,7 +141,7 @@ def show_analytics():
         # Generate and display response
         with st.spinner("Generating response..."):
             with st.chat_message("assistant", avatar=str(BOT_AVATAR)):
-                response = invoke_chain(prompt, st.session_state.messages)
+                response = invoke_chain(prompt, st.session_state.messages,st.session_state.get('username', 'anonymous'))
                 final_response = handle_response(response)
                 st.session_state.messages.append({
                     "role": "assistant",
