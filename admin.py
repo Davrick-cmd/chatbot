@@ -27,10 +27,36 @@ def convert_to_csv(users):
     } for user in users])
     return df.to_csv(index=False)
 
-@st.cache_data(ttl=1800)  # Cache data for 5 minutes
+@st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_users_data():
     db = DatabaseManager()
     return db.get_all_users()
+
+@st.cache_data(ttl=300)
+def get_pending_users():
+    db = DatabaseManager()
+    return db.get_pending_users()
+
+@st.cache_data(ttl=300)
+def get_user_analytics():
+    users = get_users_data()
+    pending = get_pending_users()
+    active_users = sum(1 for user in users if user.last_signin)
+    departments_count = {}
+    for user in users:
+        departments_count[user.department] = departments_count.get(user.department, 0) + 1
+    
+    return {
+        "total_users": len(users),
+        "pending_users": len(pending),
+        "active_users": active_users,
+        "departments_count": departments_count
+    }
+
+def clear_user_caches():
+    get_users_data.clear()
+    get_pending_users.clear()
+    get_user_analytics.clear()
 
 def admin_dashboard():
     if not st.session_state.get("authenticated"):
@@ -93,14 +119,32 @@ def admin_dashboard():
     with tab2:
         st.header("All Users")
         
-        # Add search and filter options
+        # Initialize session state variables if they don't exist
+        if "search_term" not in st.session_state:
+            st.session_state.search_term = ""
+        if "filter_dept" not in st.session_state:
+            st.session_state.filter_dept = []
+        if "filter_role" not in st.session_state:
+            st.session_state.filter_role = []
+        
+        # Use session state in filters
         col1, col2, col3 = st.columns(3)
         with col1:
-            search_term = st.text_input("🔍 Search users", placeholder="Name or email...")
+            search_term = st.text_input("🔍 Search users", 
+                                       value=st.session_state.search_term,
+                                       key="search_input")
+            st.session_state.search_term = search_term
         with col2:
-            filter_dept = st.multiselect("Filter by Department", departments)
+            filter_dept = st.multiselect("Filter by Department", 
+                                        departments,
+                                        default=st.session_state.filter_dept,
+                                        key="dept_filter")
+            st.session_state.filter_dept = filter_dept
         with col3:
-            filter_role = st.multiselect("Filter by Role", roles)
+            filter_role = st.multiselect("Filter by Role", roles, 
+                                        default=st.session_state.filter_role,
+                                        key="role_filter")
+            st.session_state.filter_role = filter_role
             
         # Filter users based on search and filters
         filtered_users = [
@@ -124,9 +168,12 @@ def admin_dashboard():
             'Last Sign-in': user.last_signin.strftime("%Y-%m-%d %H:%M") if user.last_signin else 'Never',
         } for user in filtered_users]
         
-        # Display interactive dataframe
+        # Add key to data editor and use on_change callback
+        if "edited_data" not in st.session_state:
+            st.session_state.edited_data = user_data
+
         edited_df = st.data_editor(
-            user_data,
+            st.session_state.edited_data,
             column_config={
                 "Select": st.column_config.CheckboxColumn(
                     "Select",
@@ -150,12 +197,16 @@ def admin_dashboard():
                     width="small"
                 )
             },
-            disabled=["Name", "Email", "Created", "Last Sign-in"] if not any(row["Select"] for row in user_data) else [],
+            disabled=["Name", "Email", "Created", "Last Sign-in"] if not any(row["Select"] for row in st.session_state.edited_data) else [],
             hide_index=True,
             use_container_width=True,
             key="user_editor",
             on_change=None
         )
+
+        # Only update session state if data actually changed
+        if edited_df != st.session_state.edited_data:
+            st.session_state.edited_data = edited_df
         
         # Handle update and delete actions
         for user in filtered_users:
@@ -175,6 +226,7 @@ def admin_dashboard():
                             role=user_entry['Role'],
                             status=user_entry['Status']
                         ):
+                            clear_user_caches()
                             log_admin_action(
                                 st.session_state.get('username'),
                                 'update',
@@ -182,14 +234,14 @@ def admin_dashboard():
                                 f"Changed from {old_data} to {user_entry}"
                             )
                             st.success(f"User {user.first_name} {user.last_name} updated")
-                            # Clear the cache to refresh the data
-                            get_users_data.clear()
+                            time.sleep(3)
+                            st.rerun()
                 with col2:
                     if st.button("🗑️ Delete User", key=f"delete_{user.email}", type="secondary"):
                         if db.delete_user(user.id):
-                            st.error(f"User {user.first_name} {user.last_name} deleted")
-                            # Clear the cache to refresh the data
-                            get_users_data.clear()
+                            st.success(f"User {user.first_name} {user.last_name} deleted")
+                            time.sleep(3)
+                            st.rerun()
         
         # Add export buttons
         col1, col2 = st.columns([4,1])
@@ -218,25 +270,19 @@ def admin_dashboard():
     with tab3:
         st.header("User Analytics")
         
-        # Get all users first
-        users = db.get_all_users()
+        # Get cached analytics data
+        analytics = get_user_analytics()
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Total Users", len(users))
+            st.metric("Total Users", analytics["total_users"])
         with col2:
-            st.metric("Pending Approvals", len(pending_users))
+            st.metric("Pending Approvals", analytics["pending_users"])
         with col3:
-            active_users = sum(1 for user in users if user.last_signin)
-            st.metric("Active Users", active_users)
+            st.metric("Active Users", analytics["active_users"])
         with col4:
-            departments_count = {}
-            for user in users:
-                departments_count[user.department] = departments_count.get(user.department, 0) + 1
-            
-            # Create a pie chart of department distribution
             st.write("Department Distribution")
-            st.bar_chart(departments_count)
+            st.bar_chart(analytics["departments_count"])
 
 if __name__ == "__main__":
     admin_dashboard()  
