@@ -13,6 +13,24 @@ import ast
 
 import pyodbc
 
+from typing import Union, Optional
+
+import logging
+
+# Set up logger
+import os
+
+# Create logs directory if it doesn't exist
+os.makedirs('logs', exist_ok=True)
+
+# Set up logger with path to logs directory
+conversation_logger = logging.getLogger('conversation')
+conversation_logger.setLevel(logging.INFO)
+handler = logging.FileHandler('logs/conversation.log')
+handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+conversation_logger.addHandler(handler)
+
+
 load_dotenv()
 
 db_user = os.getenv("db_user")
@@ -39,10 +57,13 @@ from prompts import final_prompt, answer_prompt,input_prompt,check_query_prompt
 import streamlit as st
 from sqlalchemy import create_engine, text
 import json
+from datetime import datetime
+
 
 
 # from pycaret.utils import get_config
 from bokeh.plotting import figure
+from bokeh.models import HoverTool
 
 
 
@@ -131,7 +152,7 @@ def get_chain():
                 # Max retries reached, return the last error message
                 return {'Summary': f"Query failed after {max_retries} attempts: {error_message}", 'Link': "", 'df': ""}
 
-        return {'data':result,'Column_Names':column_names}
+        return {'data':result,'Column_Names':column_names,'query':query}
     
     def get_corrected_query_llm(query, history):
         """
@@ -173,10 +194,13 @@ def get_chain():
             Summary=lambda result: result['formatted_result']['Summary'],
             download_link=lambda result: result['formatted_result']['Link'],
             data=lambda result: result['formatted_result']['data_list'],
-            data_column=lambda result: result['formatted_result']['Column_names']
+            data_column=lambda result: result['formatted_result']['Column_names'],
+            query=lambda result: result['formatted_result']['query']
         ) | custom_format
         
     )
+
+
 
     return chain
 
@@ -189,6 +213,7 @@ def custom_format(result):
         return result, None, None,None,None  # No download link in this case
 
     link = result['download_link']
+    query = result['query']
     data_column = list(result['data_column'])
 
     answer_chain = (answer_prompt | llm)
@@ -207,8 +232,9 @@ def custom_format(result):
         column_names = response_content.get('Column_names',"")
 
         print(f"Chart Type: {chart_type}\n")
+        print(f"Results Query: {result['query']}\n")
 
-        return response_str, link, str(result['data']),chart_type,str(column_names),str(data_column) # Add chart_type to the return values
+        return response_str, link, str(result['data']),chart_type,str(column_names),str(data_column),str(query) # Add chart_type to the return values
 
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}\n")
@@ -240,9 +266,11 @@ def format_results_to_df(result):
 
         print(f"Parsing results of length {len(result_tuples)}\n")
         column_names = result['result']['Column_Names']
+        result_query = result['query']
+
         
         if len(result_tuples) <= 5:
-            return {'Summary': result_tuples, 'Link': "", 'data_list': result_tuples,'Column_names':column_names}
+            return {'Summary': result_tuples, 'Link': "", 'data_list': result_tuples,'Column_names':column_names,'query':result_query}
 
         # Convert result tuples into DataFrame
         df = pd.DataFrame.from_records(result_tuples,columns=column_names)
@@ -251,7 +279,7 @@ def format_results_to_df(result):
         summary = f"We have {len(df)} rows and {len(df.columns)} columns."
         print(f"Summary {summary}\n")
         
-        return {'Summary': summary, 'Link': download_link, 'data_list': result_tuples,'Column_names':column_names}
+        return {'Summary': summary, 'Link': download_link, 'data_list': result_tuples,'Column_names':column_names,'query':result_query}
 
     except Exception as e:
         return {'Summary': f"Failed to parse result: {e}", 'Link': "", 'data_list': "",'Column_names':""}
@@ -275,118 +303,298 @@ def create_history(messages):
             history.add_ai_message(message["content"])
     return history
 
-def invoke_chain(question, messages):
+def log_conversation_details(user_id: str, question: str, sql_query: str = None, answer: str = None, chart_type: str = None):
+    """Log detailed conversation including SQL queries and visualization details if present"""
+    log_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "user_id": user_id,
+        "question": question,
+        "sql_query": sql_query,
+        "answer": answer,
+        "chart_type": chart_type
+    }
+    try:
+        conversation_logger.info(json.dumps(log_entry))
+    except Exception as e:
+        print(f"Logging error: {e}")
+
+def invoke_chain(question, messages, user_id: str = "anonymous"):
     history = create_history(messages)
     input_check = input_prompt | llm_4 | StrOutputParser() | str
     answer = input_check.invoke({"question":question,"messages": history.messages})
 
-    # Check if the question is related to data or it is a general question
-    print("answer :", answer)
+    # Log general questions
     if answer != '1':
+        log_conversation_details(user_id, question, answer=answer)
         return answer 
     
+    # For data-related questions
     chain = get_chain()
     response = chain.invoke({"question": question, "top_k": 3, "messages": history.messages})
+    
+    # # Extract SQL query from response if available
+    # sql_query = response.get('query', None) if isinstance(response, dict) else None
+    
+    # Handle the multiple return values from custom_format
+    if isinstance(response, tuple):
+        answer_text, link, data, chart_type, column_names, data_column,query = response
+        # Log the complete interaction with chart type
+        log_conversation_details(
+            user_id=user_id,
+            question=question,
+            sql_query=query,
+            answer=answer_text,
+            chart_type=chart_type
+        )
+    else:
+        # Log the complete interaction without chart type
+        log_conversation_details(
+            user_id=user_id,
+            question=question,
+            sql_query=query,
+            answer=str(response)
+        )
+    
     history.add_user_message(question)
     history.add_ai_message(response)
     return response
 
 
 
-
-def create_chart(chart_type, data,column_names,data_columns):
+def create_chart(chart_type: str, df: pd.DataFrame) -> None:
     """
-    Create a chart in Streamlit based on the chart type and data provided.
+    Create dynamic charts in Streamlit based on DataFrame analysis.
     
     Args:
-        chart_type (str): The type of chart to create.
-        data (list): The data to be used for the chart.
+        chart_type (str): Type of chart (bar, line, pie, scatter, histogram, box)
+        df (pd.DataFrame): DataFrame to visualize
     """
-    
-    # Convert data to a DataFrame if it's in list format
-    if isinstance(data, list):
-        df = pd.DataFrame(data,columns=data_columns)
-        df = df[data_columns]
-        df.reset_index(drop=True, inplace=True) 
-        print(f"Dataframe: {df}\n")
-    else:
-        st.error("Data format is not supported for chart creation.")
-        return
+    try:
+        # Validate DataFrame
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            st.error("Invalid or empty DataFrame")
+            return
 
-    # Check the chart type and create the appropriate chart
-    if chart_type == "bar":
-        # Create a bar chart using Altair
-        chart = alt.Chart(df).mark_bar().encode(
-            x=alt.X(df.columns[0], title=column_names[0]),  # First column as x-axis
-            y=alt.Y(df.columns[1], title=column_names[1])   # Second column as y-axis
-        )
-        st.altair_chart(chart, use_container_width=True)
-    elif chart_type == "line":
-        st.line_chart(df)  # Streamlit function for line chart
-    elif chart_type == "pie":
-        # Create a pie chart using Matplotlib
-        plt.figure(figsize=(6, 6))
-        plt.pie(df.iloc[:, 1], labels=df.iloc[:, 0], autopct='%1.1f%%')
-        plt.title("Pie Chart")
-        st.pyplot(plt)  # Streamlit function to display Matplotlib figures
-    elif chart_type == "scatter":
-        st.subheader("Scatter Plot")
-        st.write(sns.scatterplot(data=df, x=df.columns[0], y=df.columns[1]))
-        st.pyplot(plt)  # Display the figure
-    elif chart_type == "histogram":
-        st.subheader("Histogram")
-        st.write(sns.histplot(df, bins=30))
-        st.pyplot(plt)  # Display the figure
-    elif chart_type == "box":
-        st.subheader("Box Plot")
-        st.write(sns.boxplot(data=df))
-        st.pyplot(plt)  # Display the figure
-    else:
-        pass
+        # Infer data types
+        numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+        categorical_cols = df.select_dtypes(include=['object', 'category']).columns
+        temporal_cols = df.select_dtypes(include=['datetime64']).columns
+
+        if chart_type == "bar":
+            if len(numeric_cols) < 1:
+                st.error("Bar chart requires numeric columns")
+                return
+                
+            x_col = st.selectbox("Select X-axis", df.columns)
+            y_col = st.selectbox("Select Y-axis", numeric_cols)
+            
+            chart = alt.Chart(df).mark_bar().encode(
+                x=alt.X(x_col, title=x_col),
+                y=alt.Y(y_col, title=y_col, aggregate='sum'),
+                tooltip=list(df.columns)
+            ).interactive()
+            st.altair_chart(chart, use_container_width=True)
+
+        elif chart_type == "line":
+            if len(numeric_cols) < 1:
+                st.error("Line chart requires numeric columns")
+                return
+                
+            x_col = st.selectbox("Select X-axis", df.columns)
+            y_col = st.selectbox("Select Y-axis", numeric_cols)
+            
+            if x_col in temporal_cols:
+                chart = alt.Chart(df).mark_line().encode(
+                    x=alt.X(x_col, title=x_col),
+                    y=alt.Y(y_col, title=y_col),
+                    tooltip=list(df.columns)
+                ).interactive()
+                st.altair_chart(chart, use_container_width=True)
+            else:
+                st.line_chart(df.set_index(x_col)[y_col])
+
+        elif chart_type == "scatter":
+            if len(numeric_cols) < 2:
+                st.error("Scatter plot requires at least two numeric columns")
+                return
+                
+            x_col = st.selectbox("Select X-axis", numeric_cols)
+            y_col = st.selectbox("Select Y-axis", numeric_cols)
+            
+            chart = alt.Chart(df).mark_circle().encode(
+                x=alt.X(x_col, title=x_col),
+                y=alt.Y(y_col, title=y_col),
+                tooltip=list(df.columns)
+            ).interactive()
+            st.altair_chart(chart, use_container_width=True)
+
+        elif chart_type == "pie":
+            if len(categorical_cols) < 1 or len(numeric_cols) < 1:
+                st.error("Pie chart requires one categorical and one numeric column")
+                return
+                
+            cat_col = st.selectbox("Select category", categorical_cols)
+            val_col = st.selectbox("Select values", numeric_cols)
+            
+            fig, ax = plt.subplots(figsize=(10, 10))
+            df.groupby(cat_col)[val_col].sum().plot(kind='pie', ax=ax, autopct='%1.1f%%')
+            st.pyplot(fig)
+            plt.close()
+
+        elif chart_type == "histogram":
+            if len(numeric_cols) < 1:
+                st.error("Histogram requires numeric columns")
+                return
+                
+            num_col = st.selectbox("Select column", numeric_cols)
+            bins = st.slider("Number of bins", 5, 100, 30)
+            
+            chart = alt.Chart(df).mark_bar().encode(
+                x=alt.X(num_col, bin=alt.Bin(maxbins=bins)),
+                y='count()'
+            ).interactive()
+            st.altair_chart(chart, use_container_width=True)
+
+        elif chart_type == "box":
+            if len(numeric_cols) < 1:
+                st.error("Box plot requires numeric columns")
+                return
+                
+            num_col = st.selectbox("Select numeric column", numeric_cols)
+            cat_col = None
+            if len(categorical_cols) > 0:
+                cat_col = st.selectbox("Select grouping column (optional)", 
+                                     ["None"] + list(categorical_cols))
+            
+            chart = alt.Chart(df).mark_boxplot().encode(
+                x=cat_col if cat_col and cat_col != "None" else alt.X('dummy:O', title=''),
+                y=alt.Y(num_col, title=num_col)
+            ).interactive()
+            st.altair_chart(chart, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Error creating chart: {str(e)}")
+        print(f"Chart creation error: {type(e).__name__}: {str(e)}")
 
 
 
 
 
-
-
-
-
-
-def create_interactive_visuals(data, target_column=None):
+def create_interactive_visuals(data: Union[pd.DataFrame, list], target_column: Optional[str] = None) -> None:
     """
-    Create interactive visuals using pandas_profiling and Bokeh for the given dataset.
+    Create interactive visuals using ydata-profiling and Bokeh.
     
     Args:
-        data (DataFrame or list): The data to be used for visualization.
-        data_columns (list): The column names for the DataFrame.
-        target_column (str): The target column for classification problems.
+        data: DataFrame or list of data to visualize
+        target_column: Optional target column for classification analysis
+        
+    Raises:
+        ValueError: If data format is invalid or empty
     """
-    # Convert data to a DataFrame if it's in list format
-    if isinstance(data, list):
-        df = pd.DataFrame(data)
-    elif isinstance(data, pd.DataFrame):
-        df = data
-    else:
-        st.error("Data format is not supported for chart creation.")
-        return
+    try:
+        # Data validation and conversion
+        if isinstance(data, list):
+            if not data:
+                raise ValueError("Empty data list provided")
+            df = pd.DataFrame(data)
+        elif isinstance(data, pd.DataFrame):
+            if data.empty:
+                raise ValueError("Empty DataFrame provided")
+            df = data.copy()
+        else:
+            raise ValueError(f"Unsupported data type: {type(data)}")
 
-    # Generate EDA using pandas_profiling
-    profile = ProfileReport(df, title="Exploratory Data Analysis", explorative=True)
-    
-    # Display the EDA report in Streamlit
-    st.subheader("Exploratory Data Analysis Report")
-    st_profile_report(profile)
+        # Validate DataFrame columns
+        if len(df.columns) < 2:
+            raise ValueError("DataFrame must have at least two columns for visualization")
 
-    # Create interactive visualizations with Bokeh
-    # Example: Create a simple scatter plot using Bokeh
-    if target_column and len(df[target_column].unique()) <= 10:  # For categorical targets
-        p = figure(title="Scatter Plot", x_axis_label=df.columns[0], y_axis_label=df.columns[1])
-        p.scatter(x=df[df.columns[0]], y=df[df.columns[1]], size=10, color="navy", alpha=0.5)
+        # Generate EDA report with error handling
+        try:
+            with st.spinner("Generating EDA report..."):
+                profile = ProfileReport(
+                    df,
+                    title="Exploratory Data Analysis",
+                    explorative=True,
+                    minimal=True,  # Faster processing for large datasets
+                    correlations={
+                        "auto": {"calculate": True},
+                        "pearson": {"calculate": True},
+                        "spearman": {"calculate": True}
+                    },
+                    plot={
+                        "correlation": {
+                            "cmap": "RdBu",
+                            "bad": "#000000"
+                        },
+                        "missing": {
+                            "cmap": "RdBu"
+                        }
+                    }
+                )
+                
+                st.subheader("Exploratory Data Analysis Report")
+                st_profile_report(profile)
+        except Exception as e:
+            st.error(f"Error generating EDA report: {str(e)}")
+            print(f"EDA error: {type(e).__name__}: {str(e)}")
 
-        # Show the plot
-        st.bokeh_chart(p)
+        # Create interactive Bokeh visualizations
+        if target_column:
+            try:
+                # Validate target column
+                if target_column not in df.columns:
+                    raise ValueError(f"Target column '{target_column}' not found in DataFrame")
 
+                unique_values = df[target_column].nunique()
+                if unique_values <= 10:  # For categorical targets
+                    # Create scatter plot with interactive features
+                    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+                    if len(numeric_cols) >= 2:
+                        x_col = st.selectbox("Select X-axis", numeric_cols)
+                        y_col = st.selectbox("Select Y-axis", numeric_cols)
+                        
+                        p = figure(
+                            title=f"Scatter Plot: {x_col} vs {y_col}",
+                            x_axis_label=x_col,
+                            y_axis_label=y_col,
+                            tools="pan,box_zoom,reset,save,hover",
+                            sizing_mode="stretch_width",
+                            height=400
+                        )
+                        
+                        # Add interactive hover tool
+                        hover = p.select_one(HoverTool)
+                        hover.tooltips = [
+                            ('X', f'@{x_col}'),
+                            ('Y', f'@{y_col}'),
+                            (target_column, f'@{target_column}')
+                        ]
+                        
+                        # Create scatter plot with color coding
+                        for value in df[target_column].unique():
+                            mask = df[target_column] == value
+                            p.scatter(
+                                x=df[mask][x_col],
+                                y=df[mask][y_col],
+                                size=8,
+                                alpha=0.6,
+                                legend_label=str(value)
+                            )
+                        
+                        p.legend.click_policy = "hide"
+                        st.bokeh_chart(p)
+                    else:
+                        st.warning("Not enough numeric columns for scatter plot")
+                else:
+                    st.info(f"Target column has {unique_values} unique values. Scatter plot is only shown for <= 10 categories.")
+                    
+            except Exception as e:
+                st.error(f"Error creating Bokeh visualization: {str(e)}")
+                print(f"Bokeh error: {type(e).__name__}: {str(e)}")
+
+    except Exception as e:
+        st.error(f"Error in visualization process: {str(e)}")
+        print(f"Visualization error: {type(e).__name__}: {str(e)}")
 
 
 
