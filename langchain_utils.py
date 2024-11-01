@@ -210,7 +210,7 @@ def custom_format(result):
 
     if isinstance(result, str):
         # If the result is already a string, just return it as the answer
-        return result, None, None,None,None  # No download link in this case
+        return result, None, None,None,None,None,None  # No download link in this case
 
     link = result['download_link']
     query = result['query']
@@ -303,15 +303,25 @@ def create_history(messages):
             history.add_ai_message(message["content"])
     return history
 
-def log_conversation_details(user_id: str, question: str, sql_query: str = None, answer: str = None, chart_type: str = None):
-    """Log detailed conversation including SQL queries and visualization details if present"""
+def log_conversation_details(
+    user_id: str, 
+    question: str, 
+    sql_query: str = None, 
+    answer: str = None, 
+    chart_type: str = None,
+    feedback: str = None,
+    feedback_comment: str = None
+):
+    """Log detailed conversation including SQL queries, visualization details, and user feedback if present"""
     log_entry = {
         "timestamp": datetime.now().isoformat(),
         "user_id": user_id,
         "question": question,
         "sql_query": sql_query,
         "answer": answer,
-        "chart_type": chart_type
+        "chart_type": chart_type,
+        "feedback": feedback,
+        "feedback_comment": feedback_comment
     }
     try:
         conversation_logger.info(json.dumps(log_entry))
@@ -323,37 +333,13 @@ def invoke_chain(question, messages, user_id: str = "anonymous"):
     input_check = input_prompt | llm_4 | StrOutputParser() | str
     answer = input_check.invoke({"question":question,"messages": history.messages})
 
-    # Log general questions
+    # Return early for non-data questions
     if answer != '1':
-        log_conversation_details(user_id, question, answer=answer)
         return answer 
     
     # For data-related questions
     chain = get_chain()
     response = chain.invoke({"question": question, "top_k": 3, "messages": history.messages})
-    
-    # # Extract SQL query from response if available
-    # sql_query = response.get('query', None) if isinstance(response, dict) else None
-    
-    # Handle the multiple return values from custom_format
-    if isinstance(response, tuple):
-        answer_text, link, data, chart_type, column_names, data_column,query = response
-        # Log the complete interaction with chart type
-        log_conversation_details(
-            user_id=user_id,
-            question=question,
-            sql_query=query,
-            answer=answer_text,
-            chart_type=chart_type
-        )
-    else:
-        # Log the complete interaction without chart type
-        log_conversation_details(
-            user_id=user_id,
-            question=question,
-            sql_query=query,
-            answer=str(response)
-        )
     
     history.add_user_message(question)
     history.add_ai_message(response)
