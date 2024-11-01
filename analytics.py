@@ -74,15 +74,15 @@ def render_sidebar():
     """Render sidebar with settings and controls."""
     with st.sidebar:
         
-        st.header("Chatbot Settings")
-        temperature = st.slider(
-            "Creativity (Temperature)", 
-            min_value=0.0, 
-            max_value=1.0, 
-            value=0.0, 
-            step=0.1, 
-            disabled=True
-        )
+        # st.header("Chatbot Settings")
+        # temperature = st.slider(
+        #     "Creativity (Temperature)", 
+        #     min_value=0.0, 
+        #     max_value=1.0, 
+        #     value=0.0, 
+        #     step=0.1, 
+        #     disabled=True
+        # )
         
         st.divider()
         
