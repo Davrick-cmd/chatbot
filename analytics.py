@@ -89,8 +89,13 @@ def render_sidebar():
 
 # Feedback Handling
 def handle_submit_feedback():
-    st.write(st.session_state.get('feedback_comment', ''))
     """Handle feedback submission."""
+    # Update the last message with feedback
+    st.session_state.messages[-1].update({
+        "feedback": "negative",
+        "feedback_comment": st.session_state.get('feedback_comment', '')
+    })
+    
     log_conversation_details(
         user_id=st.session_state.get('username', 'anonymous'),
         question=st.session_state.current_message['prompt'],
@@ -99,12 +104,6 @@ def handle_submit_feedback():
         feedback="negative",
         feedback_comment=st.session_state.get('feedback_comment', '')
     )
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": st.session_state.current_message['message'],
-        "feedback": "negative",
-        "feedback_comment": st.session_state.get('feedback_text', '')
-    })
     
     if 'feedback' in st.session_state:
         del st.session_state.feedback
@@ -117,6 +116,13 @@ def handle_like():
     """Handle positive feedback."""
     st.session_state.feedback = "positive"
     st.session_state.feedback_comment = ""
+    
+    # Update the last message with feedback
+    st.session_state.messages[-1].update({
+        "feedback": "positive",
+        "feedback_comment": ""
+    })
+    
     log_conversation_details(
         user_id=st.session_state.get('username', 'anonymous'),
         question=st.session_state.current_message['prompt'],
@@ -125,12 +131,7 @@ def handle_like():
         feedback="positive",
         feedback_comment=""
     )
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": st.session_state.current_message['message'],
-        "feedback": "positive",
-        "feedback_comment": ""
-    })
+    
     if 'feedback' in st.session_state:
         del st.session_state.feedback
     st.success("Thanks for the positive feedback!")
@@ -194,41 +195,43 @@ def show_analytics():
             with st.chat_message("assistant", avatar=str(BOT_AVATAR)):
                 response = invoke_chain(prompt, st.session_state.messages, st.session_state.get('username', 'anonymous'))
                 message, query = handle_response(response)
-        
-        # Store current message
-        st.session_state.current_message = {
-            'message': message,
-            'query': query,
-            'prompt': prompt
-        }
-        
-        # Feedback buttons
-        col1, col2, col3 = st.columns([1, 1, 2])
-        with col1:   
-            st.button("👍 Like", 
-                key=f"like_{len(st.session_state.messages)}", 
-                on_click=handle_like)                
-        with col2:
-            st.button("👎 Dislike", 
-                key=f"dislike_{len(st.session_state.messages)}", 
-                on_click=handle_dislike)
+                
+                # Store current message
+                st.session_state.current_message = {
+                    'message': message,
+                    'query': query,
+                    'prompt': prompt
+                }
+                
+                # Add message to session state immediately
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": message
+                })
+                
+                # Log conversation without feedback
+                log_conversation_details(
+                    user_id=st.session_state.get('username', 'anonymous'),
+                    question=prompt,
+                    sql_query=query,
+                    answer=message,
+                    feedback=None,
+                    feedback_comment=None
+                )
+                
+                # Feedback buttons
+                col1, col2, col3, col4 = st.columns([1, 1, 6, 1])
+                with col1:   
+                    st.button("👍", 
+                        key=f"like_{len(st.session_state.messages)}", 
+                        on_click=handle_like,
+                        use_container_width=False)                
+                with col2:
+                    st.button("👎", 
+                        key=f"dislike_{len(st.session_state.messages)}", 
+                        on_click=handle_dislike,
+                        use_container_width=False)
 
-        # Log conversation
-        if 'feedback' in st.session_state:
-            log_conversation_details(
-                user_id=st.session_state.get('username', 'anonymous'),
-                question=prompt,
-                sql_query=query,
-                answer=message,
-                feedback=st.session_state.feedback,
-                feedback_comment=st.session_state.get('feedback_comment', '')
-            )
-        else:
-            log_conversation_details(
-                user_id=st.session_state.get('username', 'anonymous'),
-                question=prompt,
-                answer=message
-            )
 
     # Show welcome message for new sessions
     if not st.session_state.messages:
