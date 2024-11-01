@@ -234,13 +234,14 @@ def admin_dashboard():
                                 f"Changed from {old_data} to {user_entry}"
                             )
                             st.success(f"User {user.first_name} {user.last_name} updated")
-                            time.sleep(3)
+                            time.sleep(1)
                             st.rerun()
                 with col2:
                     if st.button("🗑️ Delete User", key=f"delete_{user.email}", type="secondary"):
                         if db.delete_user(user.id):
+                            clear_user_caches()
                             st.success(f"User {user.first_name} {user.last_name} deleted")
-                            time.sleep(3)
+                            time.sleep(1)
                             st.rerun()
         
         # Add export buttons

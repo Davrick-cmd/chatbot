@@ -126,12 +126,12 @@ class Navigation:
                 label_visibility="collapsed"
             )
             
-            st.divider()
+            # st.divider()
             
-            # Settings and Help
-            with st.expander("⚙️ Settings"):
-                st.toggle("Dark Mode")
-                st.selectbox("Language", ["English", "Spanish", "French"])
+            # # Settings and Help
+            # with st.expander("⚙️ Settings"):
+            #     st.toggle("Dark Mode")
+            #     st.selectbox("Language", ["English", "Spanish", "French"])
             
             # Logout button
             if st.button("🚪 Logout", type="primary"):
