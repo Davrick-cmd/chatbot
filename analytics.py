@@ -88,8 +88,7 @@ def render_sidebar():
             st.rerun()
 
 # Feedback Handling
-def handle_submit_feedback(feedback_comment):
-    st.write(feedback_comment)
+def handle_submit_feedback():
     st.write(st.session_state.get('feedback_comment', ''))
     """Handle feedback submission."""
     log_conversation_details(
@@ -140,7 +139,7 @@ def handle_dislike():
     """Handle negative feedback."""
     st.session_state.feedback = "negative"
     st.warning("Sorry to hear that. Please let us know what went wrong.")
-    feedback_comment = st.text_input(
+    feedback_comment = st.text_area(
         "What could be improved?",
         key=f"feedback_text_{len(st.session_state.messages)}"
     )
@@ -150,7 +149,7 @@ def handle_dislike():
         key=f"submit_feedback_{len(st.session_state.messages)}", 
         on_click=handle_submit_feedback
     ):
-        handle_submit_feedback(feedback_comment)
+        handle_submit_feedback()
 
 # Main Application
 def show_analytics():
@@ -166,7 +165,17 @@ def show_analytics():
     for message in st.session_state.messages:
         avatar = str(USER_AVATAR if message["role"] == "user" else BOT_AVATAR)
         with st.chat_message(message["role"], avatar=avatar):
+            # Display message content
             st.markdown(message["content"])
+            
+            # Display feedback only if it exists for assistant messages
+            if message["role"] == "assistant" and "feedback" in message and message["feedback"]:
+                feedback_emoji = "👍" if message["feedback"] == "positive" else "👎"
+                feedback_text = message.get('feedback_comment', '')
+                if feedback_text:
+                    st.caption(f"{feedback_emoji} {feedback_text}")
+                else:
+                    st.caption(feedback_emoji)
 
     # Chat input handling
     prompt = st.chat_input(
