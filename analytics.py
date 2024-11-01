@@ -139,18 +139,18 @@ def handle_like():
 def handle_dislike():
     """Handle negative feedback."""
     st.session_state.feedback = "negative"
-    st.warning("Sorry to hear that. Please let us know what went wrong.")
-    feedback_comment = st.text_area(
-        "What could be improved?",
-        key=f"feedback_text_{len(st.session_state.messages)}"
-    )
-    st.session_state.feedback_comment = feedback_comment
-    if st.button(
-        "Submit Feedback", 
-        key=f"submit_feedback_{len(st.session_state.messages)}", 
-        on_click=handle_submit_feedback
-    ):
-        handle_submit_feedback()
+    # st.warning("Sorry to hear that. Please let us know what went wrong.")
+    # feedback_comment = st.text_area(
+    #     "What could be improved?",
+    #     key=f"feedback_text_{len(st.session_state.messages)}"
+    # )
+    # st.session_state.feedback_comment = feedback_comment
+    # if st.button(
+    #     "Submit Feedback", 
+    #     key=f"submit_feedback_{len(st.session_state.messages)}", 
+    #     on_click=handle_submit_feedback
+    # ):
+    #     handle_submit_feedback()
 
 # Main Application
 def show_analytics():
@@ -231,7 +231,19 @@ def show_analytics():
                         key=f"dislike_{len(st.session_state.messages)}", 
                         on_click=handle_dislike,
                         use_container_width=False)
-
+                if st.session_state.get('feedback') == "negative":
+                    st.warning("Sorry to hear that. Please let us know what went wrong.")
+                    feedback_comment = st.text_area(
+                        "What could be improved?",
+                        key=f"feedback_text_{len(st.session_state.messages)}"
+                    )
+                    st.session_state.feedback_comment = feedback_comment
+                    if st.button(
+                        "Submit Feedback", 
+                        key=f"submit_feedback_{len(st.session_state.messages)}", 
+                        on_click=handle_submit_feedback
+                    ):
+                        handle_submit_feedback()
 
     # Show welcome message for new sessions
     if not st.session_state.messages:
