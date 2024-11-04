@@ -134,23 +134,30 @@ def handle_like():
     
     if 'feedback' in st.session_state:
         del st.session_state.feedback
-    st.success("Thanks for the positive feedback!")
 
 def handle_dislike():
     """Handle negative feedback."""
-    st.session_state.feedback = "negative"
-    # st.warning("Sorry to hear that. Please let us know what went wrong.")
-    # feedback_comment = st.text_area(
-    #     "What could be improved?",
-    #     key=f"feedback_text_{len(st.session_state.messages)}"
-    # )
-    # st.session_state.feedback_comment = feedback_comment
-    # if st.button(
-    #     "Submit Feedback", 
-    #     key=f"submit_feedback_{len(st.session_state.messages)}", 
-    #     on_click=handle_submit_feedback
-    # ):
-    #     handle_submit_feedback()
+    st.session_state.feedback = "positive"
+    st.session_state.feedback_comment = ""
+    
+    # Update the last message with feedback
+    st.session_state.messages[-1].update({
+        "feedback": "negative",
+        "feedback_comment": ""
+    })
+    
+    log_conversation_details(
+        user_id=st.session_state.get('username', 'anonymous'),
+        question=st.session_state.current_message['prompt'],
+        sql_query=st.session_state.current_message['query'],
+        answer=st.session_state.current_message['message'],
+        feedback="negative",
+        feedback_comment=""
+    )
+    
+    if 'feedback' in st.session_state:
+        del st.session_state.feedback
+
 
 # Main Application
 def show_analytics():
@@ -225,14 +232,26 @@ def show_analytics():
                     st.button("👍", 
                         key=f"like_{len(st.session_state.messages)}", 
                         on_click=handle_like,
-                        use_container_width=False)                
-                with col2:
+                        use_container_width=False)
+
+                with col2:   
                     st.button("👎", 
                         key=f"dislike_{len(st.session_state.messages)}", 
                         on_click=handle_dislike,
                         use_container_width=False)
+                        
                 if st.session_state.get('feedback') == "negative":
-                    st.warning("Sorry to hear that. Please let us know what went wrong.")
+                    col1, col2 = st.columns([10, 1])
+                    with col1:
+                        st.warning("Sorry to hear that. Please let us know what went wrong.")
+                    with col2:
+                        if st.button("✕", 
+                            key=f"close_feedback_{len(st.session_state.messages)}", 
+                            use_container_width=False,
+                            on_click=lambda: st.session_state.pop('feedback', None)
+                        ):
+                            st.rerun()
+
                     feedback_comment = st.text_area(
                         "What could be improved?",
                         key=f"feedback_text_{len(st.session_state.messages)}"
