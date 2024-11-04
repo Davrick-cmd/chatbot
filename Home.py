@@ -54,6 +54,8 @@ def init_session_state():
         "openai_model": "gpt-4-mini",
         "Link": '',
         "generate_visuals": False,
+        "feedback": None,
+        "feedback_comment": None,
         
         # Prediction states
         "forecast_results": None,

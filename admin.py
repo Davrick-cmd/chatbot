@@ -106,12 +106,14 @@ def admin_dashboard():
                         if st.button("✅ Approve", key=f"approve_{user.id}"):
                             if db.approve_user(user.id, selected_role, selected_dept):
                                 st.success("User approved!")
+                                clear_user_caches()
                                 time.sleep(3)
                                 st.rerun()
                     with col4:
                         if st.button("❌ Deny", key=f"deny_{user.id}", type="secondary"):
                             if db.delete_user(user.id):
                                 st.error("User denied and removed")
+                                clear_user_caches()
                                 time.sleep(3)
                                 st.rerun()
                     st.divider()
