@@ -52,8 +52,8 @@ class BlogPost(Base):
     
     id = Column(Integer, primary_key=True)
     title = Column(String(255), nullable=False)
-    summary = Column(String(500), nullable=False)
-    link = Column(String(1000), nullable=False)
+    summary = Column(String(2000), nullable=False)
+    link = Column(String(2000), nullable=False)
     author_id = Column(Integer, nullable=False)
     created_at = Column(DateTime, nullable=False, default=func.now())
     likes_count = Column(Integer, default=0)
