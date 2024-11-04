@@ -1,105 +1,132 @@
 import streamlit as st
+from utils.db import DatabaseManager
 import re
-# Temporary list of articles until database integration
-ARTICLES = [
-    {
-        "title": "Getting Started with DataManagement AI",
-        "summary": "Learn how to leverage our AI tools for better data management and analytics.",
-        "link": "#",
-        "likes": 42,
-        "comments": [
-            "Great article! Very informative.",
-            "This helped me understand the basics.",
-            "Looking forward to more content like this!"
-        ]
-    },
-    {
-        "title": "Best Practices for Data Analytics",
-        "summary": "Discover proven strategies and techniques for effective data analysis.",
-        "link": "#",
-        "likes": 38,
-        "comments": [
-            "These practices have improved my workflow.",
-            "Would love to see more advanced topics."
-        ]
-    },
-    {
-        "title": "Understanding Predictive Analytics",
-        "summary": "A comprehensive guide to predictive modeling and forecasting.",
-        "link": "#",
-        "likes": 35,
-        "comments": [
-            "Very comprehensive overview of the subject."
-        ]
-    }
-]
+from datetime import datetime
 
-
-def display_article(article):
-    st.subheader(article["title"])
-    st.write(article["summary"])
-    st.markdown(f"[Read more...]({article['link']})")
+def display_article(article, db):
+    post, author_first_name, author_last_name, author_email = article
     
-    # Display likes and comments count in the same line with less spacing
-    col1, col2 = st.columns([1, 2], gap="small")
+    st.subheader(post.title)
+    st.write(post.summary)
+    st.write(f"By: {author_first_name} {author_last_name}")
+    st.write(f"Published: {post.created_at.strftime('%Y-%m-%d %H:%M')}")
+    
+    # Only show link button if link exists
+    if post.link:
+        st.link_button("Read Article 📄", post.link, type="primary")
+    
+    # Create a container for likes and comments
+    col1, col2, col3 = st.columns([1, 2, 1], gap="small")
+    
     with col1:
-        likes_count = article["likes"]
-        like_button = st.button(f"👍 {likes_count} likes", key=f"like_{article['title']}")
-        if like_button:
-            article["likes"] += 1
-            st.rerun()
+        # Existing likes functionality
+        user_liked = False
+        if st.session_state.get("authenticated"):
+            user_liked = db.has_user_liked_post(post.id, st.session_state["username"])
+        
+        like_emoji = "❤️" if user_liked else "🤍"
+        if st.button(f"{like_emoji} {post.likes_count} likes", key=f"like_{post.id}"):
+            if not st.session_state.get("authenticated"):
+                st.warning("Please log in to like posts.")
+            else:
+                success, new_count = db.toggle_blog_like(post.id, st.session_state["username"])
+                if success:
+                    st.rerun()
     
     with col2:
-        comments = article.get("comments", [])
-        comments_count = len(comments)
-        with st.expander(f"💬 {comments_count} comments"):
+        comments = db.get_blog_comments(post.id)
+        with st.expander(f"💬 {len(comments)} comments"):
             st.write("#### Comments")
             
             # Display existing comments
-            for comment in comments:
-                st.write(f"• {comment}")
+            for comment, commenter_first, commenter_last in comments:
+                st.write(f"**{commenter_first} {commenter_last}:** {comment.content}")
+                st.write(f"*{comment.created_at.strftime('%Y-%m-%d %H:%M')}*")
+                st.write("---")
             
-            st.write("---")
             st.write("Join the discussion!")
-            new_comment = st.text_area("Write your comment:", height=100, key=f"comment_{article['title']}")
-            if st.button("Post Comment", key=f"button_{article['title']}"):
-                if not st.session_state.get("authenticated", False):
+            comment_key = f"comment_{post.id}"
+            new_comment = st.text_area("Write your comment:", height=100, key=comment_key)
+            if st.button("Post Comment", key=f"button_{post.id}"):
+                if not st.session_state.get("authenticated"):
                     st.warning("Please log in to post a comment.")
                 elif not new_comment.strip():
                     st.warning("Please write a comment before posting.")
                 else:
-                    article["comments"].append(new_comment)
-                    st.success("Comment posted successfully!")
-                    st.rerun()
+                    if db.add_blog_comment(post.id, st.session_state["username"], new_comment):
+                        st.success("Comment posted successfully!")
+                        # Clear the input by updating session state
+                        st.session_state[comment_key] = ""
+                        st.rerun()
+                    else:
+                        st.error("Failed to post comment. Please try again.")
     
-    st.write("---")  # Divider between articles
+    # Add delete button for article owner
+    with col3:
+        if st.session_state.get("authenticated") and st.session_state["username"] == author_email:
+            if st.button("🗑️ Delete", key=f"delete_{post.id}"):
+                if db.delete_blog_post(post.id):
+                    st.success("Article deleted successfully!")
+                    st.rerun()
+                else:
+                    st.error("Failed to delete article. Please try again.")
+    
+    st.write("---")
 
 def blog_home():
-    """Render the blog-like home page with content submission."""
-    # Page header
+    db = DatabaseManager()
+    
     st.title("Welcome to the DataManagement AI Blog!")
     
     # Articles section
     with st.container():
         st.write("### Latest Articles")
-        for article in ARTICLES:
-            display_article(article)
+        articles = db.get_blog_posts()
+        for article in articles:
+            display_article(article, db)
     
     # Content submission section
     with st.container():
-        st.write("### Publish Your Article")
-        st.write("Share your thoughts and articles with the community!")
-        content = st.text_area("Write your article here:", height=300)
-        if st.button("Publish"):
-            handle_content_submission(content)
-    
-    # Newsletter subscription section
-    with st.container():
-        st.write("### Subscribe to Our Newsletter")
-        st.write("Stay updated with the latest articles and insights!")
-        email = st.text_input("Enter your email to subscribe:")
-        if st.button("Subscribe"):
-            handle_subscription(email)
+        st.write("### Share an Article")
+        if not st.session_state.get("authenticated"):
+            st.warning("Please log in to share articles.")
+        else:
+            title = st.text_input("Article Title:")
+            summary = st.text_area("Article Summary (brief overview):", height=100)
+            link = st.text_input("Article Link (URL) - Optional:")
+            
+            if st.button("Share"):
+                if not all([title.strip(), summary.strip()]):
+                    st.warning("Please fill in the required fields (title and summary).")
+                elif link and not is_valid_url(link):
+                    st.warning("Please enter a valid URL or leave it empty.")
+                else:
+                    post_id = db.create_blog_post(
+                        title=title,
+                        summary=summary,
+                        link=link if link.strip() else None,
+                        author_email=st.session_state["username"]
+                    )
+                    if post_id:
+                        st.success("Article shared successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to share article. Please try again.")
+
+# Add this helper function to validate URLs
+def is_valid_url(url):
+    try:
+        # Basic URL validation using regex
+        url_pattern = re.compile(
+            r'^https?://'  # http:// or https://
+            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain...
+            r'localhost|'  # localhost...
+            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+            r'(?::\d+)?'  # optional port
+            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+        return url_pattern.match(url) is not None
+    except:
+        return False
 
 def validate_email(email):
     pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
