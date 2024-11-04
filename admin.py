@@ -403,4 +403,3 @@ def admin_dashboard():
 
 if __name__ == "__main__":
     admin_dashboard()
-    print("Hey")  
