@@ -47,6 +47,34 @@ class AdminLog(Base):
     details = Column(String(500), nullable=True)
     timestamp = Column(DateTime, nullable=False, default=func.now())
 
+class BlogPost(Base):
+    __tablename__ = 'blog_posts'
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    summary = Column(String(500), nullable=False)
+    link = Column(String(1000), nullable=False)
+    author_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    likes_count = Column(Integer, default=0)
+    
+class BlogComment(Base):
+    __tablename__ = 'blog_comments'
+    
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, nullable=False)  # Links to BlogPost.id
+    author_id = Column(Integer, nullable=False)  # Links to User.id
+    content = Column(String(1000), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+
+class BlogLike(Base):
+    __tablename__ = 'blog_likes'
+    
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, nullable=False)  # Links to BlogPost.id
+    user_id = Column(Integer, nullable=False)  # Links to User.id
+    created_at = Column(DateTime, nullable=False, default=func.now())
+
 class DatabaseManager:
     def __init__(self):
         # Construct connection string using the defined variables
@@ -200,6 +228,151 @@ class DatabaseManager:
         except Exception as e:
             session.rollback()
             print(f"Error logging admin action: {str(e)}")
+            return False
+        finally:
+            session.close()
+
+    def create_blog_post(self, title: str, summary: str, link: str, author_email: str) -> Optional[int]:
+        session = self.Session()
+        try:
+            # Get author's ID
+            author = session.query(User).filter_by(email=author_email).first()
+            if not author:
+                return None
+            
+            post = BlogPost(
+                title=title,
+                summary=summary,
+                link=link,
+                author_id=author.id
+            )
+            session.add(post)
+            session.commit()
+            return post.id
+        except Exception as e:
+            session.rollback()
+            print(f"Error creating blog post: {str(e)}")
+            return None
+        finally:
+            session.close()
+
+    def get_blog_posts(self, limit: int = None):
+        session = self.Session()
+        try:
+            query = session.query(
+                BlogPost,
+                User.first_name,
+                User.last_name,
+                User.email
+            ).join(User, BlogPost.author_id == User.id)\
+              .order_by(BlogPost.created_at.desc())
+            
+            if limit:
+                query = query.limit(limit)
+            
+            return query.all()
+        finally:
+            session.close()
+
+    def add_blog_comment(self, post_id: int, author_email: str, content: str) -> bool:
+        session = self.Session()
+        try:
+            author = session.query(User).filter_by(email=author_email).first()
+            if not author:
+                return False
+            
+            comment = BlogComment(
+                post_id=post_id,
+                author_id=author.id,
+                content=content
+            )
+            session.add(comment)
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            print(f"Error adding comment: {str(e)}")
+            return False
+        finally:
+            session.close()
+
+    def get_blog_comments(self, post_id: int):
+        session = self.Session()
+        try:
+            return session.query(
+                BlogComment,
+                User.first_name,
+                User.last_name
+            ).join(User, BlogComment.author_id == User.id)\
+              .filter(BlogComment.post_id == post_id)\
+              .order_by(BlogComment.created_at.desc())\
+              .all()
+        finally:
+            session.close()
+
+    def toggle_blog_like(self, post_id: int, user_email: str) -> Tuple[bool, int]:
+        session = self.Session()
+        try:
+            user = session.query(User).filter_by(email=user_email).first()
+            if not user:
+                return False, 0
+            
+            existing_like = session.query(BlogLike)\
+                .filter_by(post_id=post_id, user_id=user.id)\
+                .first()
+            
+            if existing_like:
+                session.delete(existing_like)
+                session.query(BlogPost).filter_by(id=post_id)\
+                    .update({"likes_count": BlogPost.likes_count - 1})
+            else:
+                new_like = BlogLike(post_id=post_id, user_id=user.id)
+                session.add(new_like)
+                session.query(BlogPost).filter_by(id=post_id)\
+                    .update({"likes_count": BlogPost.likes_count + 1})
+            
+            session.commit()
+            
+            # Get updated likes count
+            post = session.query(BlogPost).filter_by(id=post_id).first()
+            return True, post.likes_count
+        except Exception as e:
+            session.rollback()
+            print(f"Error toggling like: {str(e)}")
+            return False, 0
+        finally:
+            session.close()
+
+    def has_user_liked_post(self, post_id: int, user_email: str) -> bool:
+        session = self.Session()
+        try:
+            user = session.query(User).filter_by(email=user_email).first()
+            if not user:
+                return False
+            
+            return session.query(BlogLike)\
+                .filter_by(post_id=post_id, user_id=user.id)\
+                .first() is not None
+        finally:
+            session.close()
+
+    def delete_blog_post(self, post_id: int) -> bool:
+        session = self.Session()
+        try:
+            # First delete associated likes and comments
+            session.query(BlogLike).filter_by(post_id=post_id).delete()
+            session.query(BlogComment).filter_by(post_id=post_id).delete()
+            
+            # Then delete the post
+            post = session.query(BlogPost).filter_by(id=post_id).first()
+            if post:
+                session.delete(post)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            print(f"Error deleting blog post: {str(e)}")
             return False
         finally:
             session.close()
