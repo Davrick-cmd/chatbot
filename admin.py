@@ -3,6 +3,7 @@ from utils.db import DatabaseManager
 from datetime import datetime
 import time
 import pandas as pd
+import json
 
 def log_admin_action(admin_user, action, affected_user, details):
     db = DatabaseManager()
@@ -273,19 +274,132 @@ def admin_dashboard():
     with tab3:
         st.header("User Analytics")
         
-        # Get cached analytics data
-        analytics = get_user_analytics()
+        # Create subtabs for different types of analytics
+        analytics_tab1, analytics_tab2 = st.tabs(["User Statistics", "Conversation Analytics"])
         
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total Users", analytics["total_users"])
-        with col2:
-            st.metric("Pending Approvals", analytics["pending_users"])
-        with col3:
-            st.metric("Active Users", analytics["active_users"])
-        with col4:
-            st.write("Department Distribution")
-            st.bar_chart(analytics["departments_count"])
+        with analytics_tab1:
+            # Your existing analytics code
+            analytics = get_user_analytics()
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Users", analytics["total_users"])
+            with col2:
+                st.metric("Pending Approvals", analytics["pending_users"])
+            with col3:
+                st.metric("Active Users", analytics["active_users"])
+            with col4:
+                st.write("Department Distribution")
+                st.bar_chart(analytics["departments_count"])
+        
+        with analytics_tab2:
+            st.subheader("Conversation Analytics")
+            
+            # Add conversation data loading function
+            @st.cache_data(ttl=300)
+            def get_conversation_data():
+                conversations = []
+                try:
+                    with open('logs/conversation.log', 'r') as file:
+                        for line in file:
+                            try:
+                                json_str = line.split(' - ', 1)[1]
+                                conversation = json.loads(json_str)
+                                conversations.append(conversation)
+                            except:
+                                continue
+                except FileNotFoundError:
+                    st.error("Conversation log file not found")
+                    return []
+                
+                return conversations
+            
+            conversations = get_conversation_data()
+            
+            if conversations:
+                # Key metrics
+                col1, col2, col3 = st.columns(3)
+                
+                total_conversations = len(conversations)
+                unique_users = len(set(conv['user_id'] for conv in conversations))
+                feedback_stats = {
+                    'positive': sum(1 for conv in conversations if conv.get('feedback') == 'positive'),
+                    'negative': sum(1 for conv in conversations if conv.get('feedback') == 'negative'),
+                    'no_feedback': sum(1 for conv in conversations if conv.get('feedback') is None)
+                }
+                
+                with col1:
+                    st.metric("Total Conversations", total_conversations)
+                with col2:
+                    st.metric("Unique Users", unique_users)
+                with col3:
+                    feedback_rate = ((feedback_stats['positive'] + feedback_stats['negative']) / total_conversations * 100)
+                    st.metric("Feedback Rate", f"{feedback_rate:.1f}%")
+                
+                # Feedback Distribution
+                st.subheader("Feedback Distribution")
+                feedback_data = pd.DataFrame({
+                    'Feedback': ['Positive', 'Negative', 'No Feedback'],
+                    'Count': [
+                        feedback_stats['positive'],
+                        feedback_stats['negative'],
+                        feedback_stats['no_feedback']
+                    ]
+                })
+                st.bar_chart(feedback_data.set_index('Feedback'))
+                
+                # User Activity Analysis
+                st.subheader("User Activity")
+                
+                # Group conversations by user
+                user_activity = {}
+                for conv in conversations:
+                    user_activity[conv['user_id']] = user_activity.get(conv['user_id'], 0) + 1
+                
+                # Create DataFrame for top users
+                top_users_df = pd.DataFrame({
+                    'User': list(user_activity.keys()),
+                    'Conversations': list(user_activity.values())
+                }).sort_values('Conversations', ascending=False).head(10)
+                
+                st.bar_chart(top_users_df.set_index('User'))
+                
+                # Daily Activity Chart
+                st.subheader("Daily Activity")
+                
+                # Convert timestamps to datetime
+                for conv in conversations:
+                    conv['datetime'] = datetime.fromisoformat(conv['timestamp'].replace('Z', '+00:00'))
+                
+                # Group by date
+                daily_activity = {}
+                for conv in conversations:
+                    date = conv['datetime'].date()
+                    daily_activity[date] = daily_activity.get(date, 0) + 1
+                
+                # Create DataFrame for daily activity
+                daily_df = pd.DataFrame({
+                    'Date': list(daily_activity.keys()),
+                    'Conversations': list(daily_activity.values())
+                }).sort_values('Date')
+                
+                st.line_chart(daily_df.set_index('Date'))
+                
+                # Recent Conversations Table
+                with st.expander("Recent Conversations"):
+                    st.dataframe(
+                        pd.DataFrame([{
+                            'Time': conv['datetime'].strftime('%Y-%m-%d %H:%M'),
+                            'User': conv['user_id'],
+                            'Question': conv['question'],
+                            'Feedback': conv.get('feedback', 'None')
+                        } for conv in sorted(conversations, 
+                                          key=lambda x: x['datetime'], 
+                                          reverse=True)[:20]]),
+                        use_container_width=True
+                    )
+            else:
+                st.info("No conversation data available")
 
 if __name__ == "__main__":
-    admin_dashboard()  
+    admin_dashboard()
