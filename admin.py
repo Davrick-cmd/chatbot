@@ -80,7 +80,7 @@ def admin_dashboard():
         pending_users = db.get_pending_users()
         
         # Define available roles and departments
-        roles = ["Admin","User", "Manager", "Analyst", "Developer"]
+        roles = ["User", "Manager", "Analyst", "Developer","Admin"]
         departments = ["IT", "Finance", "HR", "Operations", "Marketing","DataManagement","Retention"]
         
         if not pending_users:
@@ -98,14 +98,14 @@ def admin_dashboard():
                             options=roles,
                             key=f"role_{user.id}"
                         )
-                        selected_dept = st.selectbox(
-                            "Department", 
-                            options=departments,
-                            key=f"dept_{user.id}"
-                        )
+                        # selected_dept = st.selectbox(
+                        #     "Department", 
+                        #     options=departments,
+                        #     key=f"dept_{user.id}"
+                        # )
                     with col3:
                         if st.button("✅ Approve", key=f"approve_{user.id}"):
-                            if db.approve_user(user.id, selected_role, selected_dept):
+                            if db.approve_user(user.id, selected_role):
                                 st.success("User approved!")
                                 clear_user_caches()
                                 time.sleep(3)

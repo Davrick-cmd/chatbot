@@ -30,7 +30,7 @@ class User(Base):
     password_hash = Column(String(64), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    department = Column(String(100), nullable=True)
+    department = Column(String(100), nullable=False)
     role = Column(String(50), nullable=True)
     status = Column(String(20), nullable=False, default='pending')  # 'pending' or 'approved'
     created_at = Column(DateTime, nullable=False, default=func.now())
@@ -92,7 +92,7 @@ class DatabaseManager:
         return hashlib.sha256(password.encode()).hexdigest()
     
     def create_user(self, email: str, password: str, first_name: str, last_name: str, 
-                   department: str = None, role: str = None) -> bool:
+                   department: str, role: str = None) -> bool:
         session = self.Session()
         try:
             user = User(
@@ -130,14 +130,13 @@ class DatabaseManager:
                 user.last_signin = func.now()
                 session.commit()
     
-    def approve_user(self, user_id: int, role: str, department: str) -> bool:
+    def approve_user(self, user_id: int, role: str) -> bool:
         session = self.Session()
         try:
             user = session.query(User).filter_by(id=user_id).first()
             if user:
                 user.status = 'approved'
                 user.role = role
-                user.department = department
                 user.approved_at = datetime.now()
                 session.commit()
                 return True
