@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Table, MetaData, DateTime, func
+from sqlalchemy import create_engine, Column, Integer, String,Boolean, Table, MetaData, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -21,9 +21,8 @@ DB_NAME = os.getenv('db_name')
 # Create Base class for declarative models
 Base = declarative_base()
 
-
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = 'users__'
     
     id = Column(Integer, primary_key=True)
     email = Column(String(255), unique=True, nullable=False)
@@ -35,6 +34,7 @@ class User(Base):
     status = Column(String(20), nullable=False, default='pending')  # 'pending' or 'approved'
     created_at = Column(DateTime, nullable=False, default=func.now())
     approved_at = Column(DateTime, nullable=True)
+    consent_signed = Column(Boolean, default=False)  # Consent field (default to False)
     last_signin = Column(DateTime, nullable=True)  # Tracks the user's last sign-in time
 
 class AdminLog(Base):
@@ -119,7 +119,7 @@ class DatabaseManager:
                 email=email,
                 password_hash=self._hash_password(password)
             ).first()
-            return (user.first_name, user.last_name,user.department,user.role,user.status) if user else None
+            return (user.first_name, user.last_name,user.department,user.role,user.status,user.consent_signed) if user else None
         finally:
             session.close()
     
@@ -129,6 +129,14 @@ class DatabaseManager:
             if user:
                 user.last_signin = func.now()
                 session.commit()
+
+    def update_consent(self,username):
+        with self.Session() as session:
+            user = session.query(User).filter_by(email=username).first()
+            if user:
+                user.consent_signed = 1
+                session.commit()
+
     
     def approve_user(self, user_id: int, role: str) -> bool:
         session = self.Session()

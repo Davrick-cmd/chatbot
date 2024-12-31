@@ -72,6 +72,54 @@ class AuthManager:
     #             else:
     #                 self._handle_signup(signup_username, signup_password, confirm_password, first_name, last_name)
     
+    # def _handle_login(self, username: str, password: str):
+    #     if username and password:
+    #         # Remove @domain.com if present
+    #         username = username.split('@')[0] if '@' in username else username
+    #         # First try LDAP authentication
+    #         ldap_success, ldap_user_data = self._authenticate_ldap(username, password)
+    #         print(ldap_success, ldap_user_data)
+            
+    #         if ldap_success:
+    #             # Check if user exists in local DB
+    #             user_data = self.db.verify_user(username, password)
+                
+    #             if not user_data:
+    #                 # Create user in local DB if they don't exist
+    #                 self.db.create_user(
+    #                     email=username,
+    #                     password=password,
+    #                     first_name=ldap_user_data.get('first_name', ''),
+    #                     last_name=ldap_user_data.get('last_name', ''),
+    #                     department=ldap_user_data.get('department', ''),
+    #                     # status='active'  # Auto-approve LDAP users
+    #                 )
+    #                 user_data = self.db.verify_user(username, password)
+                
+    #             if user_data:
+    #                 first_name, last_name, department, role, status, *_ = user_data
+    #                 first_name, last_name, department, role, status, consent_signed, *_ = user_data
+    #                 if status == 'pending':
+    #                     st.success("Your account is pending approval. Please wait for admin confirmation.")
+    #                     return
+                    
+    #                 # Update last signin time
+    #                 self.db.update_last_signin(username)
+                    
+    #                 st.session_state["authenticated"] = True
+    #                 st.session_state["username"] = username
+    #                 st.session_state["firstname"] = first_name
+    #                 st.session_state["lastname"] = last_name
+    #                 st.session_state["role"] = role
+    #                 st.session_state["department"] = department
+    #                 st.session_state["page"] = "📊 Analytics"
+    #                 st.success("Login successful! Redirecting...")
+    #                 st.rerun()
+    #         else:
+    #             st.error("Invalid email or password")
+    #     else:
+    #         st.warning("Please enter both email and password.")
+
     def _handle_login(self, username: str, password: str):
         if username and password:
             # Remove @domain.com if present
@@ -80,7 +128,7 @@ class AuthManager:
             ldap_success, ldap_user_data = self._authenticate_ldap(username, password)
             print(ldap_success, ldap_user_data)
             
-            if ldap_success:
+            if ldap_success:  # to be reversed
                 # Check if user exists in local DB
                 user_data = self.db.verify_user(username, password)
                 
@@ -92,14 +140,18 @@ class AuthManager:
                         first_name=ldap_user_data.get('first_name', ''),
                         last_name=ldap_user_data.get('last_name', ''),
                         department=ldap_user_data.get('department', ''),
-                        # status='active'  # Auto-approve LDAP users
                     )
                     user_data = self.db.verify_user(username, password)
                 
                 if user_data:
-                    first_name, last_name, department, role, status, *_ = user_data
+                    first_name, last_name, department, role, status, consent_signed, *_ = user_data
+                    
                     if status == 'pending':
                         st.success("Your account is pending approval. Please wait for admin confirmation.")
+                        return
+                    
+                    if not consent_signed:
+                        self._render_consent_form(username)
                         return
                     
                     # Update last signin time
@@ -118,6 +170,70 @@ class AuthManager:
                 st.error("Invalid email or password")
         else:
             st.warning("Please enter both email and password.")
+
+    def _render_consent_form(self, username: str):
+        """
+        Display a consent form for the user and update the database when signed.
+        """
+        st.write("Consent Form")
+        
+        # Detailed Consent Content
+        st.markdown("""
+        ### **Consent for AI Chatbot Usage**
+        
+        By engaging with this chatbot, you acknowledge and agree to the following terms:
+        
+        1. **Purpose of the Chatbot**  
+        This chatbot is designed to assist with your queries, provide recommendations, and offer support. Its responses are generated based on the information you provide and pre-trained models.  
+        
+        2. **Data Collection**  
+        - Information you provide during your interaction with the chatbot may be collected and used to enhance the quality of service and for troubleshooting purposes.  
+        - Any personal or sensitive information you share will be handled with strict confidentiality and in compliance with applicable data protection regulations.  
+        
+        3. **Use of Data**  
+        - Your data may be used to improve the chatbot’s functionality, personalize your experience, and refine its performance.  
+        - Data shared will not be sold or shared with third parties without your explicit consent, except as required by law.  
+        
+        4. **Limitations of AI Responses**  
+        - The chatbot’s responses are generated by artificial intelligence and should not be considered as professional advice.  
+        - For critical decisions or detailed guidance, consult a qualified expert or professional.  
+        
+        5. **User Responsibility**  
+        - Avoid sharing confidential or sensitive personal information during your interaction.  
+        - Use the chatbot responsibly and refrain from any misuse or abusive behavior.  
+        
+        6. **Consent Confirmation**  
+        By continuing to use this chatbot, you confirm that:  
+        - You have read and understood the terms and conditions outlined above.  
+        - You agree to the collection and use of your data as described.  
+        
+        If you do not agree to these terms, you are advised to discontinue using this chatbot.
+        """)
+
+        # Checkbox for Consent
+        consent_given = st.checkbox("I agree to the terms and conditions")
+
+        # Process Consent
+        if consent_given:
+            self.db.update_consent(username)
+            st.success("Thank you for signing the consent form! Redirecting...")
+            time.sleep(1)
+            st.rerun()  # You can adjust or remove this as per your app flow
+        else:
+            st.warning("You must agree to the terms and conditions to proceed.")
+
+        
+
+
+
+    # Add this method to `DatabaseManager` to update the consent_signed field
+    def update_consent(self, username: str):
+        """
+        Update the consent_signed field for the user.
+        """
+        query = "UPDATE [users__] SET consent_signed = 1 WHERE email = ?"
+        self.execute_query(query, [username])
+
     
     # def _handle_signup(self, username: str, password: str, confirm_password: str, 
     #                   first_name: str, last_name: str):

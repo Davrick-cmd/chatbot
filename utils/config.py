@@ -7,9 +7,11 @@ class AppConfig:
             layout="wide",
             page_title="DataManagement AI",
             page_icon="./img/bkofkgl.png",
-            menu_items={
-                'Get Help': 'mailto:john@example.com',
-                'About': "#### This is DataManagement cool app!"
+            menu_items = {
+                'About': """
+                #### Welcome to the DataManagement App  
+                For support or feedback, please contact us at: [datamanagement@bk.rw](mailto:datamanagement@bk.rw)
+                """
             }
         )
         

@@ -323,9 +323,13 @@ def admin_dashboard():
                 total_conversations = len(conversations)
                 unique_users = len(set(conv['user_id'] for conv in conversations))
                 feedback_stats = {
-                    'positive': sum(1 for conv in conversations if conv.get('feedback') == 'positive'),
-                    'negative': sum(1 for conv in conversations if conv.get('feedback') == 'negative'),
-                    'no_feedback': sum(1 for conv in conversations if conv.get('feedback') is None)
+                    'Very Happy': sum(1 for conv in conversations if conv.get('feedback') == 'Very Happy'),
+                    'Happy': sum(1 for conv in conversations if conv.get('feedback') == 'Happy'),
+                    'no_feedback': sum(1 for conv in conversations if conv.get('feedback') is None),
+                    'Neutral': sum(1 for conv in conversations if conv.get('feedback') == 'Neutral'),
+                    'Unhappy': sum(1 for conv in conversations if conv.get('feedback') == 'Unhappy'),
+                    'Very Unhappy': sum(1 for conv in conversations if conv.get('feedback') == 'Very Unhappy')
+
                 }
                 
                 with col1:
@@ -333,16 +337,19 @@ def admin_dashboard():
                 with col2:
                     st.metric("Unique Users", unique_users)
                 with col3:
-                    feedback_rate = ((feedback_stats['positive'] + feedback_stats['negative']) / total_conversations * 100)
+                    feedback_rate = ((feedback_stats['Very Happy'] + feedback_stats['Happy'] + feedback_stats['Neutral'] + feedback_stats['Unhappy'] + feedback_stats['Very Unhappy']) / total_conversations * 100)
                     st.metric("Feedback Rate", f"{feedback_rate:.1f}%")
                 
                 # Feedback Distribution
                 st.subheader("Feedback Distribution")
                 feedback_data = pd.DataFrame({
-                    'Feedback': ['Positive', 'Negative', 'No Feedback'],
+                    'Feedback': ['Very Happy', 'Happy', 'Neutral','Unhappy', 'Very Unhappy','No Feedback'],
                     'Count': [
-                        feedback_stats['positive'],
-                        feedback_stats['negative'],
+                        feedback_stats['Very Happy'],
+                        feedback_stats['Happy'],
+                        feedback_stats['Neutral'],
+                        feedback_stats['Unhappy'],
+                        feedback_stats['Very Unhappy'],
                         feedback_stats['no_feedback']
                     ]
                 })

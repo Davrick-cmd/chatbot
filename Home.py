@@ -136,6 +136,7 @@ class Navigation:
             #     st.selectbox("Language", ["English", "Spanish", "French"])
             
             # Logout button
+            # st.markdown("<h5 style='color: gray;'>For support, contact: <a href='mailto:datamanagementai.bk.rw'>datamanagementai.bk.rw</a></h5>", unsafe_allow_html=True)
             if st.button("🚪 Logout", type="primary"):
                 AuthManager.logout()
 

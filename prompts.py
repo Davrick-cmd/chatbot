@@ -1,6 +1,7 @@
-
+import streamlit as st
 from examples import get_example_selector
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder,FewShotChatMessagePromptTemplate,PromptTemplate
+
 
 example_prompt = ChatPromptTemplate.from_messages(
     [
@@ -8,10 +9,18 @@ example_prompt = ChatPromptTemplate.from_messages(
         ("ai", "{query}"),
     ]
 )
+
+try:
+    example_selector = get_example_selector()
+except Exception as e:
+    # Handle any other generic errors
+    st.error("Something went wrong. Please contact datamanagement@bk.rw for support.")
+    st.stop()
+
 few_shot_prompt = FewShotChatMessagePromptTemplate(
     example_prompt=example_prompt,
-    example_selector=get_example_selector(),
-    input_variables=["input","top_k"],
+    example_selector=example_selector,
+    input_variables=["input", "top_k"],
 )
 
 # Define a dictionary for definitions
