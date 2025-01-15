@@ -69,8 +69,17 @@ from bokeh.models import HoverTool
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 llm_4 = ChatOpenAI(model="gpt-4o", temperature=0.0)
-llm_tune01 = ChatOpenAI(model="ft:gpt-4o-2024-08-06:personal:tune01:AJ4Ea2SL",temperature=0.0)
-tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER','BOT_FUNDS_TRANSFER']
+llm_tune01 = ChatOpenAI(model="ft:gpt-4o-2024-08-06:personal:analytics:AcTe4OFX",temperature=0.0)
+
+# role = st.session_state.get("role", "User")  # Default to "User" if role is not set
+
+# # Define tables based on the role
+# if role == "Admin":
+tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER', 'BOT_FUNDS_TRANSFER']
+# else:
+#     tables_to_include = ['ChatbotAccounts_og', 'BOT_CUSTOMER_2','BOT_FUNDS_TRANSFER']  
+
+
 db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
         include_tables=tables_to_include
@@ -79,7 +88,7 @@ db = SQLDatabase.from_uri(
 @st.cache_resource
 def get_chain():
     print("Creating chain\n")
-    tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER','BOT_FUNDS_TRANSFER']
+    # tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER','BOT_FUNDS_TRANSFER']
 
     db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
@@ -89,7 +98,7 @@ def get_chain():
 
     # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     generate_query = create_sql_query_chain(llm_tune01, db, final_prompt) #using a fine tuned model
-    execute_query = QuerySQLDataBaseTool(db=db)
+    # execute_query = QuerySQLDataBaseTool(db=db)
 
     engine = create_engine(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server"

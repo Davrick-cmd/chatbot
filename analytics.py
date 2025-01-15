@@ -9,6 +9,8 @@ from typing import Optional, Dict, List, Union
 from config import OPENAI_API_KEY
 from pathlib import Path
 import random
+import time
+import streamlit.components.v1 as components
 
 # Constants
 ASSETS_DIR = Path("img")
@@ -17,7 +19,7 @@ BOT_AVATAR = ASSETS_DIR / "bkofkgl.png"
 LOGO = ASSETS_DIR / "bklogo.png"
 
 def _submit_feedback(user_response, emoji=None):
-    st.toast(f"Feedback submitted: {user_response}", icon=emoji)
+    # st.toast(f"Feedback submitted: {user_response}", icon=emoji)
     print(f"Feedback submitted: {user_response}", emoji)
     
     # Mapping of emojis to words
@@ -42,6 +44,7 @@ def _submit_feedback(user_response, emoji=None):
         feedback=feedback_score_word,  # Use the word representation
         feedback_comment=user_response['text']
     )
+
     
     return user_response.update({"some metadata": 123})
 
@@ -167,6 +170,7 @@ def show_analytics():
 
         # Generate response
         with st.spinner("Generating response..."):
+            st.balloons()
             with st.chat_message("assistant", avatar=str(BOT_AVATAR)):
                 response = invoke_chain(prompt, st.session_state.messages, st.session_state.get('username', 'anonymous'))
                 message, query = handle_response(response)
@@ -194,13 +198,19 @@ def show_analytics():
                     feedback=None,
                     feedback_comment=None
                 )
-
+                time.sleep(10)
                 st.rerun()
 
 
     # Show welcome message for new sessions
     if not st.session_state.messages:
         render_welcome_message()
+        # Display custom HTML content
+
+    # components.iframe("https://app.fabric.microsoft.com/reportEmbed?reportId=dafae922-a2b9-40b5-ac81-8c7a3acb7678&autoAuth=true&ctid=9766f6af-73b8-40a2-8694-ede49d30d84e", height=500)
 
 if __name__ == "__main__":
     show_analytics()
+
+
+    

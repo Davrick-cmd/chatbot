@@ -56,69 +56,6 @@ class AuthManager:
             if submitted:
                 self._handle_login(login_username, login_password)
     
-    # def _render_signup_form(self):
-    #     with st.form("signup_form"):
-    #         st.write("Create a new account:")
-    #         signup_username = st.text_input("Email", placeholder="Enter your BK email (example@bk.rw)")
-    #         signup_password = st.text_input("Password", type="password", placeholder="Create a password")
-    #         confirm_password = st.text_input("Confirm Password", type="password", placeholder="Confirm your password")
-    #         first_name = st.text_input("First Name", placeholder="Enter your first name")
-    #         last_name = st.text_input("Last Name", placeholder="Enter your last name")
-            
-    #         submitted = st.form_submit_button("Sign up")
-    #         if submitted:
-    #             if not signup_username.endswith("@bk.rw"):
-    #                 st.warning("Please use your BK email address (@bk.rw)")
-    #             else:
-    #                 self._handle_signup(signup_username, signup_password, confirm_password, first_name, last_name)
-    
-    # def _handle_login(self, username: str, password: str):
-    #     if username and password:
-    #         # Remove @domain.com if present
-    #         username = username.split('@')[0] if '@' in username else username
-    #         # First try LDAP authentication
-    #         ldap_success, ldap_user_data = self._authenticate_ldap(username, password)
-    #         print(ldap_success, ldap_user_data)
-            
-    #         if ldap_success:
-    #             # Check if user exists in local DB
-    #             user_data = self.db.verify_user(username, password)
-                
-    #             if not user_data:
-    #                 # Create user in local DB if they don't exist
-    #                 self.db.create_user(
-    #                     email=username,
-    #                     password=password,
-    #                     first_name=ldap_user_data.get('first_name', ''),
-    #                     last_name=ldap_user_data.get('last_name', ''),
-    #                     department=ldap_user_data.get('department', ''),
-    #                     # status='active'  # Auto-approve LDAP users
-    #                 )
-    #                 user_data = self.db.verify_user(username, password)
-                
-    #             if user_data:
-    #                 first_name, last_name, department, role, status, *_ = user_data
-    #                 first_name, last_name, department, role, status, consent_signed, *_ = user_data
-    #                 if status == 'pending':
-    #                     st.success("Your account is pending approval. Please wait for admin confirmation.")
-    #                     return
-                    
-    #                 # Update last signin time
-    #                 self.db.update_last_signin(username)
-                    
-    #                 st.session_state["authenticated"] = True
-    #                 st.session_state["username"] = username
-    #                 st.session_state["firstname"] = first_name
-    #                 st.session_state["lastname"] = last_name
-    #                 st.session_state["role"] = role
-    #                 st.session_state["department"] = department
-    #                 st.session_state["page"] = "📊 Analytics"
-    #                 st.success("Login successful! Redirecting...")
-    #                 st.rerun()
-    #         else:
-    #             st.error("Invalid email or password")
-    #     else:
-    #         st.warning("Please enter both email and password.")
 
     def _handle_login(self, username: str, password: str):
         if username and password:
@@ -126,7 +63,7 @@ class AuthManager:
             username = username.split('@')[0] if '@' in username else username
             # First try LDAP authentication
             ldap_success, ldap_user_data = self._authenticate_ldap(username, password)
-            print(ldap_success, ldap_user_data)
+            print('Good',ldap_success, ldap_user_data)
             
             if ldap_success:  # to be reversed
                 # Check if user exists in local DB
@@ -164,6 +101,7 @@ class AuthManager:
                     st.session_state["role"] = role
                     st.session_state["department"] = department
                     st.session_state["page"] = "📊 Analytics"
+                    st.session_state["is_admin"] = self.db.is_admin(username) 
                     st.success("Login successful! Redirecting...")
                     st.rerun()
             else:
@@ -248,12 +186,19 @@ class AuthManager:
     #     else:
     #         st.warning("Please fill in all fields.")
     
+    
     @staticmethod
     def logout():
-        for key in ["authenticated", "username", "page", "firstname", "lastname"]:
-            st.session_state[key] = None
+        keys = ["authenticated", "username", "page", "firstname", "lastname", 'docmessages', "retriever", "chain", "selected_vectorstore_name"]
+        for key in keys:
+            if key in st.session_state:
+                st.session_state[key] = None
+            
+        if 'memory' in st.session_state:
+            st.session_state.memory.clear()
+            
         st.success("Successfully logged out!")
-        st.rerun() 
+        st.rerun()
 
     def _authenticate_ldap(self, username: str, password: str) -> tuple[bool, dict]:
         """
@@ -291,6 +236,7 @@ class AuthManager:
                 search_filter,
                 attributes=['givenName', 'sn', 'department', 'mail']
             )
+    
 
             if len(conn.entries) > 0:
                 user_data = {

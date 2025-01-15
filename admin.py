@@ -4,6 +4,7 @@ from datetime import datetime
 import time
 import pandas as pd
 import json
+from notifications import send_notification
 
 def log_admin_action(admin_user, action, affected_user, details):
     db = DatabaseManager()
@@ -106,16 +107,19 @@ def admin_dashboard():
                     with col3:
                         if st.button("✅ Approve", key=f"approve_{user.id}"):
                             if db.approve_user(user.id, selected_role):
+                                send_notification(user.first_name, user.email, "approved.")
                                 st.success("User approved!")
                                 clear_user_caches()
-                                time.sleep(3)
+                                time.sleep(2)
                                 st.rerun()
                     with col4:
                         if st.button("❌ Deny", key=f"deny_{user.id}", type="secondary"):
                             if db.delete_user(user.id):
+                                # Send notification email
+                                send_notification(user.first_name, user.email, "declined.")
                                 st.error("User denied and removed")
                                 clear_user_caches()
-                                time.sleep(3)
+                                time.sleep(2)
                                 st.rerun()
                     st.divider()
     

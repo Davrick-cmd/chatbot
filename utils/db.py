@@ -106,8 +106,9 @@ class DatabaseManager:
             session.add(user)
             session.commit()
             return True
-        except IntegrityError:
+        except IntegrityError as e:
             session.rollback()
+            print(f"Error adding user: {str(e)}")
             return False
         finally:
             session.close()

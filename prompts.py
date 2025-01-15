@@ -168,3 +168,12 @@ check_query_prompt = ChatPromptTemplate.from_messages([
 
     ("human", "Your task is to review the SQL query. Please do one of the following:\n- Return the original query if it fully complies with the given definitions,\n- Provide a corrected SQL query that fully aligns with the definitions. Do not include any explanations or extra information in your response.")
 ])
+
+condense_question_prompt = PromptTemplate(
+    input_variables=['chat_history', 'question'], 
+    template="""Given the following conversation and a follow up question (at the end), 
+rephrase the follow up question to be a standalone question, in the same language as the follow up question.\n\n
+Chat History:\n{chat_history}\n
+Follow up question: {question}\n
+Standalone question:"""
+)

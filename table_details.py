@@ -12,10 +12,25 @@ from prompts import definitions_string
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 from typing import List
 
+# role = st.session_state.get("role", "User")  # Default to "User" if role is not set
+
+# if role == "Admin":
+#     tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER', 'BOT_FUNDS_TRANSFER']
+# else:
+#     tables_to_include = ['ChatbotAccounts_og', 'BOT_CUSTOMER_2','BOT_FUNDS_TRANSFER']  
+
+tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER', 'BOT_FUNDS_TRANSFER']
+
 @st.cache_data
 def get_table_details():
     # Read the CSV file into a DataFrame
     table_description = pd.read_csv("database_table_descriptions.csv")
+
+    # Filter the DataFrame to include only the specified tables
+    table_description = table_description[table_description['Table'].isin(tables_to_include)]
+
+    print(table_description)
+
     table_docs = []
 
     # Iterate over the DataFrame rows to create Document objects
