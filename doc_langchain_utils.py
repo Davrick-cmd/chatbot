@@ -141,6 +141,7 @@ Language: {language}.
     
 def _combine_documents(docs, document_prompt, document_separator="\n\n"):
     doc_strings = [format_document(doc, document_prompt) for doc in docs]
+    
     return document_separator.join(doc_strings)
 
 def custom_ConversationalRetrievalChain(

@@ -6,7 +6,7 @@ from langchain.chains.openai_tools import create_extraction_chain_pydantic
 from pydantic import BaseModel,Field
 
 from langchain_openai import ChatOpenAI
-from prompts import definitions_string
+
 
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
@@ -29,8 +29,7 @@ def get_table_details():
     # Filter the DataFrame to include only the specified tables
     table_description = table_description[table_description['Table'].isin(tables_to_include)]
 
-    print(table_description)
-
+    # print(table_description)
     table_docs = []
 
     # Iterate over the DataFrame rows to create Document objects
@@ -53,17 +52,24 @@ def get_tables(tables: List[Table]) -> List[str]:
 # table_names = "\n".join(db.get_usable_table_names())
 table_details = get_table_details()
 
+# Assuming context is passed from a chain, and table_details is fetched as shown earlier
+table_details = get_table_details()
+
 table_details_prompt = f"""
-Return the names of ALL the SQL tables that MIGHT be relevant to the user question. 
+Return the names of ALL the SQL tables that MIGHT be relevant to the user question.
 
 The tables are:
 {table_details}
 
 In addition to considering the tables, you must also take into account the following business definitions when identifying relevant tables:
 
-{definitions_string}
+
+{{context}}
 
 Remember to include ALL POTENTIALLY RELEVANT tables, even if you're not sure that they're needed, and make sure that the tables you select align with these business definitions.
 """
 
-table_chain = {"input": itemgetter("question")} | create_extraction_chain_pydantic(Table, llm, system_message=table_details_prompt) | get_tables
+table_chain = {
+    "input": itemgetter("standalone_question"),
+    "context": itemgetter('context'),  # Ensure 'context' is passed here
+} | create_extraction_chain_pydantic(Table, llm, system_message=table_details_prompt) | get_tables

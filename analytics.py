@@ -12,6 +12,9 @@ import random
 import time
 import streamlit.components.v1 as components
 
+
+
+
 # Constants
 ASSETS_DIR = Path("img")
 USER_AVATAR = ASSETS_DIR / "user-icon.png"
@@ -69,22 +72,22 @@ def handle_response(response: Union[str, List]):
     """Handle the chatbot response and generate visualizations."""
     if isinstance(response, str):
         st.markdown(response)
-        return response, None
+        return response, None,'',''
 
     message, href, data_str, chart_type, column_names, data_column, query = response
     st.markdown(message)
     
     if href:
-        st.markdown(href, unsafe_allow_html=True)
-        df = process_csv_data(href)
         st.session_state['Link'] = href
-        
-        if df is not None and not df.empty:
-            create_interactive_visuals(df)
-            if chart_type != "none" and 3 <= len(df) <= 24:
-                create_chart(chart_type, df)
-    
-    return message, query
+        st.markdown(st.session_state.Link, unsafe_allow_html=True)
+        # df = process_csv_data(href)        
+        # if df is not None and not df.empty:
+        #     # int_chart = create_interactive_visuals(df)
+        #     if chart_type != "none" and 3 <= len(df) <= 24:
+        #         chart = create_chart(chart_type, df)
+    else:
+        href = ''    
+    return message, query, href,chart_type
 
 # UI Components
 def render_welcome_message():
@@ -142,9 +145,19 @@ def show_analytics():
         avatar = str(USER_AVATAR if message["role"] == "user" else BOT_AVATAR)
         with st.chat_message(message["role"], avatar=avatar):
             # Display message content
-            st.markdown(message["content"])            
+            st.markdown(message["content"])           
             # Display feedback only if it exists for assistant messages
             if message["role"] == "assistant" and n >= 1:
+                st.markdown(message['Link'],unsafe_allow_html=True)
+                # st.altair_chart(message['chart'], use_container_width=True)
+                if message['Link'] != '':
+                    df = process_csv_data(message['Link'])        
+                    if df is not None and not df.empty:
+                        # int_chart = create_interactive_visuals(df)
+                        if message['chart_type'] != "none" and 3 <= len(df) <= 24:
+                            create_chart(message['chart_type'],df)
+                # st.bokeh_chart(message['chart'])
+                 
                 feedback_key = f"feedback_{int(n/2)}"
 
                 if feedback_key not in st.session_state:
@@ -170,10 +183,9 @@ def show_analytics():
 
         # Generate response
         with st.spinner("Generating response..."):
-            st.balloons()
             with st.chat_message("assistant", avatar=str(BOT_AVATAR)):
                 response = invoke_chain(prompt, st.session_state.messages, st.session_state.get('username', 'anonymous'))
-                message, query = handle_response(response)
+                message, query, link,chart_type= handle_response(response)
 
                 
                 # Store current message
@@ -186,7 +198,9 @@ def show_analytics():
                 # Add message to session state immediately
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": message
+                    "content": message,
+                    "Link":link,
+                    "chart_type":chart_type
                 })
                 
                 # Log conversation without feedback
@@ -198,7 +212,7 @@ def show_analytics():
                     feedback=None,
                     feedback_comment=None
                 )
-                time.sleep(10)
+                # time.sleep(10)
                 st.rerun()
 
 

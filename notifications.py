@@ -19,9 +19,9 @@ def send_notification(user_name, user_email, status):
 
     # Define file paths
     if status == 'approved.':
-        template_file = 'message.html'
+        template_file = 'template/message.html'
     else:
-        template_file = 'message_decline.html'
+        template_file = 'template/message_decline.html'
     banner_file = 'img/bkofkgl.png'
 
     # print('Image path exists',os.path.exists(banner_file))  # Should return True
