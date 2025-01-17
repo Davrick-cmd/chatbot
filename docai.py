@@ -60,6 +60,7 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 # LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
 cohere_api_key = os.getenv("COHERE_API_KEY")
 embeddings = OpenAIEmbeddings(api_key=openai_api_key)
+st.session_state.cohere_api_key = cohere_api_key
 
 
 ####################################################################
@@ -70,8 +71,8 @@ embeddings = OpenAIEmbeddings(api_key=openai_api_key)
 # st.title("BK DocAI")
 
 # API keys
-st.session_state.openai_api_key = ""
-st.session_state.cohere_api_key = ""
+st.session_state.openai_api_key = openai_api_key
+st.session_state.cohere_api_key = cohere_api_key
 
 def expander_model_parameters(
     LLM_provider="OpenAI",
@@ -80,29 +81,29 @@ def expander_model_parameters(
 ):
     """Add a text_input (for API key) and a streamlit expander containing models and parameters."""
     st.session_state.LLM_provider = LLM_provider
+    st.session_state.selected_model = "gpt-4o"
+    # LLM_provider = "OpenAI"
+    # st.session_state.openai_api_key = openai_api_key
+    # with st.expander("**Models and parameters**"):
+    #     st.session_state.selected_model = st.selectbox(
+    #         f"Choose {LLM_provider} model", list_models
+    #     )
 
-    LLM_provider = "OpenAI"
-    st.session_state.openai_api_key = openai_api_key
-    with st.expander("**Models and parameters**"):
-        st.session_state.selected_model = st.selectbox(
-            f"Choose {LLM_provider} model", list_models
-        )
-
-        # model parameters
-        st.session_state.temperature = st.slider(
-            "temperature",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.1,
-        )
-        st.session_state.top_p = st.slider(
-            "top_p",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.95,
-            step=0.05,
-        )
+    #     # model parameters
+    #     st.session_state.temperature = st.slider(
+    #         "temperature",
+    #         min_value=0.0,
+    #         max_value=1.0,
+    #         value=0.5,
+    #         step=0.1,
+    #     )
+    #     st.session_state.top_p = st.slider(
+    #         "top_p",
+    #         min_value=0.0,
+    #         max_value=1.0,
+    #         value=0.95,
+    #         step=0.05,
+    #     )
 
 
 
@@ -137,7 +138,7 @@ def sidebar_and_documentChooser():
         st.divider()
         st.subheader("Retrievers")
         retrievers = list_retriever_types
-        if st.session_state.selected_model == " gpt-4o":
+        if st.session_state.selected_model == "gpt-4o":
             # for " gpt-4o", we will not use the vectorstore backed retriever
             # there is a high risk of exceeding the max tokens limit (4096).
             retrievers = list_retriever_types[:-1]
@@ -151,7 +152,7 @@ def sidebar_and_documentChooser():
     # Tabbed Pane: Create a new Vectorstore | Open a saved Vectorstore
     # Create tabs based on user role
     if st.session_state.get("is_admin", False):  # Default to False if not set
-        tab_open_vectorstore,tab_new_vectorstore = st.tabs(["Select Vectorstore","Create Vectorstore" ])
+        tab_open_vectorstore,tab_new_vectorstore = st.tabs(["Select Document Store","Create Document Store" ])
     else:
         tab_open_vectorstore = st.tabs(["Select Vectorstore"])[0]
 
@@ -164,17 +165,17 @@ def sidebar_and_documentChooser():
         available_vectorstores = [d.name for d in vector_stores_path.iterdir() if d.is_dir()]
 
         if not available_vectorstores:
-            st.info("No vectorstores found. Please create a new vectorstore first.")
+            st.info("No Document Store found. Please create a new vectorstore first.")
         else:
-            st.write("**Select a Vectorstore:**")
+            st.write("**Select Document Store:**")
             selected_store = st.selectbox(
-                label="Available Vectorstores",
+                label="Available Document Stores",
                 options=available_vectorstores,
                 label_visibility="collapsed"
             )
 
-            if st.button("Load Selected Vectorstore"):
-                with st.spinner("Loading vectorstore..."):
+            if st.button("Load Selected Document Store"):
+                with st.spinner("Loading Document Store..."):
                     st.session_state.selected_vectorstore_name = selected_store
                     try:
                         st.session_state.retriever = retrieval_blocks(
@@ -213,9 +214,9 @@ def sidebar_and_documentChooser():
                         )
                         
                         clear_chat_history()
-                        st.success(f"Successfully loaded vectorstore: {selected_store}")
+                        st.success(f"Successfully loaded Document Store: {selected_store}")
                     except Exception as e:
-                        st.error(f"Error loading vectorstore: {str(e)}")
+                        st.error(f"Error loading Document Store: {str(e)}")
     with tab_new_vectorstore:
 
         st.session_state.website = st.text_input(
@@ -232,11 +233,11 @@ def sidebar_and_documentChooser():
         # 2. Process documents
         st.session_state.vector_store_name = st.text_input(
             label="**Documents will be loaded, embedded and ingested into a vectorstore (Chroma dB). Please provide a valid dB name.**",
-            placeholder="Vectorstore name",
+            placeholder="Documents name",
         )
         # 3. Add a button to process documnets and create a Chroma vectorstore
 
-        st.button("Create Vectorstore", on_click=create_vectorstore)
+        st.button("Create Document Store", on_click=create_vectorstore)
         try:
             if st.session_state.error_message != "":
                 st.warning(st.session_state.error_message)
@@ -332,7 +333,7 @@ def chatbot():
                 border: 2px solid #002060; 
                 color: #002060;
                 text-align: center;">
-                <strong>Please select a vectorstore to start chatting</strong>
+                <strong>Please select a Document Store to start chatting</strong>
             </div>
             """,
             unsafe_allow_html=True
@@ -348,20 +349,22 @@ def chatbot():
                 "content": dict_welcome_message[st.session_state.assistant_language],
             }
         ]
-    for msg in st.session_state.docmessages:
-        if msg["role"] == "user":
-            st.chat_message(msg["role"], avatar=str(USER_AVATAR)).write(msg["content"])
-        else:
-            st.chat_message(msg["role"], avatar=str(BOT_AVATAR)).write(msg["content"])
+
+        # Disable chat input if no vectorstore is selected
+    if st.session_state.get("selected_vectorstore_name") or st.session_state.get("selected_vectorstore_name") is not None:    
+        for msg in st.session_state.docmessages:
+            if msg["role"] == "user":
+                st.chat_message(msg["role"], avatar=str(USER_AVATAR)).write(msg["content"])
+            else:
+                st.chat_message(msg["role"], avatar=str(BOT_AVATAR)).write(msg["content"])
 
     # Disable chat input if no vectorstore is selected
     if not st.session_state.get("selected_vectorstore_name") or st.session_state.get("selected_vectorstore_name") is None:
-        st.chat_input(placeholder="Please select a vectorstore first...", disabled=True)
-    elif prompt := st.chat_input():
+        st.chat_input(placeholder="Please select a Document Store first...", disabled=True)
+    elif prompt := st.chat_input(f"Hi {st.session_state.get('firstname', 'there')}, "
+        f"what questions can I answer today related to {st.session_state.get("selected_vectorstore_name")}?"):
         if (
             not st.session_state.openai_api_key
-            and not st.session_state.google_api_key
-            and not st.session_state.hf_api_key
         ):
             st.info(
                 f"Please insert your {st.session_state.LLM_provider} API key to continue."

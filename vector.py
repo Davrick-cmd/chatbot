@@ -581,9 +581,9 @@ def retrieval_blocks(
                 top_n=cohere_top_n
             )
  
-        st.success(f"\n{retriever_type} is created successfully!")
-        st.success(f"Relevant documents will be retrieved from vectorstore ({vectorstore_name}) which uses {LLM_service} embeddings \
-and has {vector_store._collection.count()} chunks.")
+        # st.success(f"\n{retriever_type} is created successfully!")
+#         st.success(f"Relevant documents will be retrieved from vectorstore ({vectorstore_name}) which uses {LLM_service} embeddings \
+# and has {vector_store._collection.count()} chunks.")
         
         return retriever
     except Exception as e:
