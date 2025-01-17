@@ -4,6 +4,7 @@ from datetime import datetime
 import time
 import pandas as pd
 import json
+from notifications import send_notification
 
 def log_admin_action(admin_user, action, affected_user, details):
     db = DatabaseManager()
@@ -80,7 +81,7 @@ def admin_dashboard():
         pending_users = db.get_pending_users()
         
         # Define available roles and departments
-        roles = ["Admin","User", "Manager", "Analyst", "Developer"]
+        roles = ["User", "Manager", "Analyst", "Developer","Admin"]
         departments = ["IT", "Finance", "HR", "Operations", "Marketing","DataManagement","Retention"]
         
         if not pending_users:
@@ -98,24 +99,27 @@ def admin_dashboard():
                             options=roles,
                             key=f"role_{user.id}"
                         )
-                        selected_dept = st.selectbox(
-                            "Department", 
-                            options=departments,
-                            key=f"dept_{user.id}"
-                        )
+                        # selected_dept = st.selectbox(
+                        #     "Department", 
+                        #     options=departments,
+                        #     key=f"dept_{user.id}"
+                        # )
                     with col3:
                         if st.button("✅ Approve", key=f"approve_{user.id}"):
-                            if db.approve_user(user.id, selected_role, selected_dept):
+                            if db.approve_user(user.id, selected_role):
+                                send_notification(user.first_name, user.email, "approved.")
                                 st.success("User approved!")
                                 clear_user_caches()
-                                time.sleep(3)
+                                time.sleep(2)
                                 st.rerun()
                     with col4:
                         if st.button("❌ Deny", key=f"deny_{user.id}", type="secondary"):
                             if db.delete_user(user.id):
+                                # Send notification email
+                                send_notification(user.first_name, user.email, "declined.")
                                 st.error("User denied and removed")
                                 clear_user_caches()
-                                time.sleep(3)
+                                time.sleep(2)
                                 st.rerun()
                     st.divider()
     
@@ -323,9 +327,13 @@ def admin_dashboard():
                 total_conversations = len(conversations)
                 unique_users = len(set(conv['user_id'] for conv in conversations))
                 feedback_stats = {
-                    'positive': sum(1 for conv in conversations if conv.get('feedback') == 'positive'),
-                    'negative': sum(1 for conv in conversations if conv.get('feedback') == 'negative'),
-                    'no_feedback': sum(1 for conv in conversations if conv.get('feedback') is None)
+                    'Very Happy': sum(1 for conv in conversations if conv.get('feedback') == 'Very Happy'),
+                    'Happy': sum(1 for conv in conversations if conv.get('feedback') == 'Happy'),
+                    'no_feedback': sum(1 for conv in conversations if conv.get('feedback') is None),
+                    'Neutral': sum(1 for conv in conversations if conv.get('feedback') == 'Neutral'),
+                    'Unhappy': sum(1 for conv in conversations if conv.get('feedback') == 'Unhappy'),
+                    'Very Unhappy': sum(1 for conv in conversations if conv.get('feedback') == 'Very Unhappy')
+
                 }
                 
                 with col1:
@@ -333,16 +341,19 @@ def admin_dashboard():
                 with col2:
                     st.metric("Unique Users", unique_users)
                 with col3:
-                    feedback_rate = ((feedback_stats['positive'] + feedback_stats['negative']) / total_conversations * 100)
+                    feedback_rate = ((feedback_stats['Very Happy'] + feedback_stats['Happy'] + feedback_stats['Neutral'] + feedback_stats['Unhappy'] + feedback_stats['Very Unhappy']) / total_conversations * 100)
                     st.metric("Feedback Rate", f"{feedback_rate:.1f}%")
                 
                 # Feedback Distribution
                 st.subheader("Feedback Distribution")
                 feedback_data = pd.DataFrame({
-                    'Feedback': ['Positive', 'Negative', 'No Feedback'],
+                    'Feedback': ['Very Happy', 'Happy', 'Neutral','Unhappy', 'Very Unhappy','No Feedback'],
                     'Count': [
-                        feedback_stats['positive'],
-                        feedback_stats['negative'],
+                        feedback_stats['Very Happy'],
+                        feedback_stats['Happy'],
+                        feedback_stats['Neutral'],
+                        feedback_stats['Unhappy'],
+                        feedback_stats['Very Unhappy'],
                         feedback_stats['no_feedback']
                     ]
                 })

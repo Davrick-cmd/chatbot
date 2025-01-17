@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Table, MetaData, DateTime, func
+from sqlalchemy import create_engine, Column, Integer, String,Boolean, Table, MetaData, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -21,20 +21,20 @@ DB_NAME = os.getenv('db_name')
 # Create Base class for declarative models
 Base = declarative_base()
 
-
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = 'users__'
     
     id = Column(Integer, primary_key=True)
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String(64), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    department = Column(String(100), nullable=True)
+    department = Column(String(100), nullable=False)
     role = Column(String(50), nullable=True)
     status = Column(String(20), nullable=False, default='pending')  # 'pending' or 'approved'
     created_at = Column(DateTime, nullable=False, default=func.now())
     approved_at = Column(DateTime, nullable=True)
+    consent_signed = Column(Boolean, default=False)  # Consent field (default to False)
     last_signin = Column(DateTime, nullable=True)  # Tracks the user's last sign-in time
 
 class AdminLog(Base):
@@ -52,8 +52,8 @@ class BlogPost(Base):
     
     id = Column(Integer, primary_key=True)
     title = Column(String(255), nullable=False)
-    summary = Column(String(500), nullable=False)
-    link = Column(String(1000), nullable=False)
+    summary = Column(String(2000), nullable=False)
+    link = Column(String(2000), nullable=False)
     author_id = Column(Integer, nullable=False)
     created_at = Column(DateTime, nullable=False, default=func.now())
     likes_count = Column(Integer, default=0)
@@ -92,7 +92,7 @@ class DatabaseManager:
         return hashlib.sha256(password.encode()).hexdigest()
     
     def create_user(self, email: str, password: str, first_name: str, last_name: str, 
-                   department: str = None, role: str = None) -> bool:
+                   department: str, role: str = None) -> bool:
         session = self.Session()
         try:
             user = User(
@@ -106,8 +106,9 @@ class DatabaseManager:
             session.add(user)
             session.commit()
             return True
-        except IntegrityError:
+        except IntegrityError as e:
             session.rollback()
+            print(f"Error adding user: {str(e)}")
             return False
         finally:
             session.close()
@@ -119,7 +120,7 @@ class DatabaseManager:
                 email=email,
                 password_hash=self._hash_password(password)
             ).first()
-            return (user.first_name, user.last_name,user.department,user.role,user.status) if user else None
+            return (user.first_name, user.last_name,user.department,user.role,user.status,user.consent_signed) if user else None
         finally:
             session.close()
     
@@ -129,15 +130,22 @@ class DatabaseManager:
             if user:
                 user.last_signin = func.now()
                 session.commit()
+
+    def update_consent(self,username):
+        with self.Session() as session:
+            user = session.query(User).filter_by(email=username).first()
+            if user:
+                user.consent_signed = 1
+                session.commit()
+
     
-    def approve_user(self, user_id: int, role: str, department: str) -> bool:
+    def approve_user(self, user_id: int, role: str) -> bool:
         session = self.Session()
         try:
             user = session.query(User).filter_by(id=user_id).first()
             if user:
                 user.status = 'approved'
                 user.role = role
-                user.department = department
                 user.approved_at = datetime.now()
                 session.commit()
                 return True

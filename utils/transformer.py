@@ -495,7 +495,55 @@ examples = [
                 FROM DistinctCounts;
 
             """
-    }
+    },
+    {
+    "input":"How many customers will churn in the next 30 days?",
+    "query":"""
+            WITH Filtered_Accounts AS (
+                SELECT 
+                    CUSTOMER_NUMBER,
+                    CASE 
+                        WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
+                            OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()))) THEN 1  -- Active
+                        WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
+                            AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE())) 
+                            OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE())) THEN 2  -- Inactive
+                        WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
+                            AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE())) THEN 3  -- Dormant
+                        WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE())) THEN 4  -- Unclaimed
+                        ELSE NULL
+                    END AS Status
+                FROM ChatbotAccounts
+                WHERE CATEGORY NOT IN ('1080', '1031') 
+                AND SUBSTRING(CATEGORY, 1, 1) <> '3'
+            ),
+            
+            Customer_Status AS (
+                SELECT 
+                    CUSTOMER_NUMBER,
+                    MIN(Status) AS Status_Rank
+                FROM Filtered_Accounts
+                WHERE Status IS NOT NULL
+                GROUP BY CUSTOMER_NUMBER
+            ),
+            
+            At_Risk_Customers AS (
+                SELECT 
+                    cs.CUSTOMER_NUMBER
+                FROM Customer_Status cs
+                JOIN ChatbotAccounts a ON cs.CUSTOMER_NUMBER = a.CUSTOMER_NUMBER
+                WHERE 
+                    cs.Status_Rank = 2  -- Inactive customers
+                    AND a.LAST_TRANS_DATE <= DATEADD(DAY, -330, GETDATE()) -- Inactive for at least 330 days
+                    AND a.LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) -- Will transition to Dormant soon
+            )
+            
+            SELECT
+                COUNT(DISTINCT arc.CUSTOMER_NUMBER) AS At_Risk_To_Dormant_Count
+            FROM At_Risk_Customers arc;
+
+                    """
+            }
 
 ]
 

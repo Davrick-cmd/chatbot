@@ -7,9 +7,11 @@ class AppConfig:
             layout="wide",
             page_title="DataManagement AI",
             page_icon="./img/bkofkgl.png",
-            menu_items={
-                'Get Help': 'mailto:john@example.com',
-                'About': "#### This is DataManagement cool app!"
+            menu_items = {
+                'About': """
+                #### Welcome to the DataManagement App  
+                For support or feedback, please contact us at: [datamanagement@bk.rw](mailto:datamanagement@bk.rw)
+                """
             }
         )
         
@@ -28,3 +30,12 @@ class AppConfig:
                 /* Add more custom CSS here */
             </style>
         """, unsafe_allow_html=True) 
+
+class Config:
+    AD_TIMEOUT = 10  # seconds
+    AD_SERVER = "bk.local"
+    AD_DOMAIN = "bk.local"
+    AD_USER = 'datamanagementai'
+    AD_USER_PASSWORD = "Kigali2024@"
+    AD_TIMEOUT=10
+    AD_SEARCH_BASE='DC=bk,DC=local'

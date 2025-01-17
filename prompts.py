@@ -1,6 +1,7 @@
-
+import streamlit as st
 from examples import get_example_selector
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder,FewShotChatMessagePromptTemplate,PromptTemplate
+
 
 example_prompt = ChatPromptTemplate.from_messages(
     [
@@ -8,61 +9,65 @@ example_prompt = ChatPromptTemplate.from_messages(
         ("ai", "{query}"),
     ]
 )
+
+try:
+    example_selector = get_example_selector()
+except Exception as e:
+    # Handle any other generic errors
+    st.error("Something went wrong. Please contact datamanagement@bk.rw for support.")
+    st.stop()
+
 few_shot_prompt = FewShotChatMessagePromptTemplate(
     example_prompt=example_prompt,
-    example_selector=get_example_selector(),
-    input_variables=["input","top_k"],
+    example_selector=example_selector,
+    input_variables=["input", "top_k"],
 )
 
-# Define a dictionary for definitions
-definitions = {
-    "Customer": "A customer is defined as an entity holding an account  with CATEGORY starting with digit of  '1' or '6', excluding any account within categories '1080' or '1031'.",
-    "Current Account": "Accounts with with a CATEGORY starting with digit '1', excluding category '1080' or '1031'. Predominantly used for routine transactions.",
-    "Loan Account": "Accounts with with a CATEGORY starting with digit '3', specifically associated with loan purposes.",
-    "VIP Customer": "A high-value status customer identified by target of value VIP or VVIP.",
-    "Transaction Date": "The date of the most recent transaction on the aacount (LAST_TRANS_DATE)",
-    "Active Account": "A current account (non-1080/1031) with at least one transaction in the last 90 days, or a savings account with at least one transaction in the last 360 days.",
-    "Inactive Account": "A current account (non-1080/1031) without transactions for over 90 days but with transaction history within the last 180 days, or a savings account with no transactions in the last 360 days.",
-    "Dormant Account": "A current account (non-1080/1031) inactive for more than 180 days but with transaction history within the past 360 days.",
-    "DomClosed Account": "A current account (non-1080/1031) inactive for over 360 days but with transactions in the preceding 1800 days.",
-    "Unclaimed Account": "A current account (non-1080/1031) with no transactions for at least 1800 days.",
-    "Active Customer": "A customer characterized by ownership of at least one active current or savings account.",
-    "Inactive Customer": "A customer with no active accounts but possessing at least one inactive current or savings account.",
-    "Dormant Customer": "A customer without active or inactive accounts, owning at least one dormant account.",
-    "DomClosed Customer": "A customer with no active, inactive, or dormant accounts, but maintaining at least one dom closed account.",
-    "Unclaimed Customer": "A customer whose only accounts are unclaimed current accounts, with no active, inactive, dormant, or dom closed accounts present",
-    "Churn Customer": "A customer who has only DomClosed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment.",
-    "Churn Rate": " it is the percentage of Churn Customers over total number of customers (according to our definition).",
-    "EMPLOYMENT STATUS": "Whether a customer is employed, unemployed, retired, students, etc, determined using EMPLOYMENT_STATUS IN CUSTOMER TABLE",
-    "BK Card": "A BK Card is defined by specific card number prefixes, which include ISO_TRUN_PAN values of ('446999', '471375', '471376', '471377', '512952', '517315', '526111', '532018', '534617', '513904')."
-}
+# # Define a dictionary for definitions
+# definitions = {
+#     "Customer": "A customer is defined as an entity holding an account  with CATEGORY starting with digit of  '1' or '6', excluding any account within categories '1080' or '1031'.",
+#     "Current Account": "Accounts with with a CATEGORY starting with digit '1', excluding category '1080' or '1031'. Predominantly used for routine transactions.",
+#     "Loan Account": "Accounts with with a CATEGORY starting with digit '3', specifically associated with loan purposes.",
+#     "VIP Customer": "A high-value status customer identified by target of value VIP or VVIP.",
+#     "Transaction Date": "The date of the most recent transaction on the aacount (LAST_TRANS_DATE)",
+#     "Active Account": "A current account (non-1080/1031) with at least one transaction in the last 90 days, or a savings account with at least one transaction in the last 360 days.",
+#     "Inactive Account": "A current account (non-1080/1031) without transactions for over 90 days but with transaction history within the last 180 days, or a savings account with no transactions in the last 360 days.",
+#     "Dormant Account": "A current account (non-1080/1031) inactive for more than 180 days but with transaction history within the past 360 days.",
+#     "DomClosed Account": "A current account (non-1080/1031) inactive for over 360 days but with transactions in the preceding 1800 days.",
+#     "Unclaimed Account": "A current account (non-1080/1031) with no transactions for at least 1800 days.",
+#     "Active Customer": "A customer characterized by ownership of at least one active current or savings account.",
+#     "Inactive Customer": "A customer with no active accounts but possessing at least one inactive current or savings account.",
+#     "Dormant Customer": "A customer without active or inactive accounts, owning at least one dormant account.",
+#     "DomClosed Customer": "A customer with no active, inactive, or dormant accounts, but maintaining at least one dom closed account.",
+#     "Unclaimed Customer": "A customer whose only accounts are unclaimed current accounts, with no active, inactive, dormant, or dom closed accounts present",
+#     "Churn Customer": "A customer who has only DomClosed Accounts or Unclaimed Accounts and no other accounts.indicating the likelihood of service termination or abandonment.",
+#     "Churn Rate": " it is the percentage of Churn Customers over total number of customers (according to our definition).",
+#     "EMPLOYMENT STATUS": "Whether a customer is employed, unemployed, retired, students, etc, determined using EMPLOYMENT_STATUS IN CUSTOMER TABLE",
+#     "BK Card": "A BK Card is defined by specific card number prefixes, which include ISO_TRUN_PAN values of ('446999', '471375', '471376', '471377', '512952', '517315', '526111', '532018', '534617', '513904')."
+# }
 
-# Convert the definitions dictionary to a string format
-definitions_string = "\n".join([f"- {key}: {value}" for key, value in definitions.items()])
+# # Convert the definitions dictionary to a string format
+# definitions_string = "\n".join([f"- {key}: {value}" for key, value in definitions.items()])
 
 # Construct the final prompt using the entire dictionary as a string
-final_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", 
-         f"""You are a MSSQL expert. Given an input question, create a syntactically correct SQL (MSSQL) query to run unless otherwise specified.
+final_prompt = ChatPromptTemplate.from_messages([
+    ("system", 
+     """You are a MSSQL expert. Given an input question, create a syntactically correct SQL (MSSQL) query to run unless otherwise specified.
 
-         Here is the relevant table info: {{table_info}}
+     Here is the relevant table info: {table_info}
 
-         Below are a number of examples of questions and their corresponding SQL queries. These examples are correct and should be trusted. 
-         Additionally, the SQL comments included with each example should be taken into account when designing the MS SQL query.
+     Below are a number of examples of questions and their corresponding SQL queries. These examples are correct and should be trusted. 
+     Additionally, the SQL comments included with each example should be taken into account when designing the MS SQL query.
 
-         Definitions:
-         {definitions_string}
+     Here are the relevant definitions for this query:
+     {context}
 
-         IMPORTANT: When generating SQL queries, make sure to apply the definitions provided above. For example, if a question asks for the number of retail customers, remember that a customer is defined as having an account with a category starting with 1 or 6 and not having category 1080.
-         """
-        ),
-        few_shot_prompt,
-        MessagesPlaceholder(variable_name="messages"),
-        ("human", "{input}"),
-    ]
-)
-
+     IMPORTANT: When generating SQL queries, make sure to apply the definitions provided above. If a definition isn't provided in the context, use standard business logic.
+     """),
+    few_shot_prompt,
+    MessagesPlaceholder(variable_name="messages"),
+    ("human", "{standalone_question}"),
+])
 
 input_prompt = ChatPromptTemplate.from_messages(
     [
@@ -100,10 +105,10 @@ input_prompt = ChatPromptTemplate.from_messages(
         ("human", "Here is the chat history:"),
         MessagesPlaceholder(variable_name="messages"),  # Dynamically includes the chat history
 
-        ("human", "Here is the question: \"{question}\""),
+        ("human", "Here is the question: \"{standalone_question}\""),
         ("human", "Below are the official Bank of Kigali business definitions:"),
 
-        ("human", f"{definitions_string}"),
+        ("human", "{context}"),
 
         ("human", """Your response should either:
         - Be a conversational answer if it’s a general inquiry,
@@ -134,7 +139,7 @@ answer_prompt = PromptTemplate.from_template(
         "Column_names": "<List of columns to use if a chart is needed>",
     }}
     
-    Question: {question}
+    Question: {standalone_question}
     SQL Query: {query}
     Result Summary: {Summary}
     Column Names: {data_column}
@@ -147,7 +152,7 @@ check_query_prompt = ChatPromptTemplate.from_messages([
     ("human", "When generating or evaluating any SQL query, strictly apply the definitions provided. For clarity, if a question seeks the number of retail customers, the definition specifies a customer as having an account with a category starting with 1 or 6, excluding category 1080."),
 
     ("human", "Below are the official business definitions that must be strictly followed:"),
-    ("human", f"{definitions_string}"),  # Include business definitions dynamically
+    ("human", "{context}"),  # Include business definitions dynamically
 
     ("human", "The original inquiry was as follows: {question}"),  # Explicitly include the original question
 
@@ -159,3 +164,32 @@ check_query_prompt = ChatPromptTemplate.from_messages([
 
     ("human", "Your task is to review the SQL query. Please do one of the following:\n- Return the original query if it fully complies with the given definitions,\n- Provide a corrected SQL query that fully aligns with the definitions. Do not include any explanations or extra information in your response.")
 ])
+
+condense_question_prompt = PromptTemplate(
+    input_variables=['chat_history', 'question'], 
+    template="""Given the following conversation and a follow up question (at the end), 
+rephrase the follow up question to be a standalone question, in the same language as the follow up question.\n\n
+Chat History:\n{chat_history}\n
+Keep in mind that the last human message in chat history is the same as the follow up question.\n
+Follow up question: {question}\n
+Standalone question:"""
+)
+
+def answer_template(language="english"):
+    """Pass the standalone question along with the chat history and context 
+    to the `LLM` wihch will answer"""
+    
+    template = f"""Answer the question at the end, using only the following context (delimited by <context></context>).
+Your answer must be in the language at the end. 
+
+<context>
+{{chat_history}}
+
+{{context}} 
+</context>
+
+Question: {{question}}
+
+Language: {language}.
+"""
+    return template

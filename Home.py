@@ -9,6 +9,7 @@ import base64
 from predictions import show_predictions
 from analytics import show_analytics
 from blog_home import blog_home
+from docai import chatbot
 from utils.auth import AuthManager
 from pathlib import Path
 from utils.db import DatabaseManager
@@ -112,9 +113,10 @@ class Navigation:
             
             # Navigation menu with icons
             options = [
-                "🏠 Home",
+                # "🏠 Home",
                 "📊 Analytics",
-                "🔮 Predictions"
+                "📑 DocAI",
+                "🔮 Predictions",
             ]
             
             # Only add Admin option if user is admin
@@ -124,7 +126,7 @@ class Navigation:
             st.session_state["page"] = st.radio(
                 "Navigation",
                 options=options,
-                index=1,
+                index=0,
                 label_visibility="collapsed"
             )
             
@@ -136,6 +138,7 @@ class Navigation:
             #     st.selectbox("Language", ["English", "Spanish", "French"])
             
             # Logout button
+            # st.markdown("<h5 style='color: gray;'>For support, contact: <a href='mailto:datamanagementai.bk.rw'>datamanagementai.bk.rw</a></h5>", unsafe_allow_html=True)
             if st.button("🚪 Logout", type="primary"):
                 AuthManager.logout()
 
@@ -153,8 +156,9 @@ def main_page():
         
         # Route to appropriate page
         pages = {
-            "🏠 Home": blog_home,
+            # "🏠 Home": blog_home,
             "📊 Analytics": show_analytics,
+            "📑 DocAI": chatbot,
             "🔮 Predictions": show_predictions,
             "👑 Admin": admin_dashboard
         }

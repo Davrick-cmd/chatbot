@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_feedback import streamlit_feedback
 import pandas as pd
 from io import StringIO
 import base64
@@ -7,12 +8,48 @@ from langchain_utils import invoke_chain, create_chart, create_interactive_visua
 from typing import Optional, Dict, List, Union
 from config import OPENAI_API_KEY
 from pathlib import Path
+import random
+import time
+import streamlit.components.v1 as components
+
+
+
 
 # Constants
 ASSETS_DIR = Path("img")
 USER_AVATAR = ASSETS_DIR / "user-icon.png"
 BOT_AVATAR = ASSETS_DIR / "bkofkgl.png"
 LOGO = ASSETS_DIR / "bklogo.png"
+
+def _submit_feedback(user_response, emoji=None):
+    # st.toast(f"Feedback submitted: {user_response}", icon=emoji)
+    print(f"Feedback submitted: {user_response}", emoji)
+    
+    # Mapping of emojis to words
+    emoji_to_word = {
+        "😀": "Very Happy",
+        "🙂": "Happy",
+        "😐": "Neutral",
+        "🙁": "Unhappy",
+        "😞": "Very Unhappy",
+        # Add more emojis and their corresponding words as needed
+    }
+
+    # Convert emoji score to words
+    feedback_score_word = emoji_to_word.get(user_response['score'], "Unknown")
+
+    # Log the feedback with the word representation
+    log_conversation_details(
+        user_id=st.session_state.get('username', 'anonymous'),
+        question=st.session_state.current_message['prompt'],
+        sql_query=st.session_state.current_message['query'],
+        answer=st.session_state.current_message['message'],
+        feedback=feedback_score_word,  # Use the word representation
+        feedback_comment=user_response['text']
+    )
+
+    
+    return user_response.update({"some metadata": 123})
 
 # Session State Management
 def initialize_session_state():
@@ -35,21 +72,22 @@ def handle_response(response: Union[str, List]):
     """Handle the chatbot response and generate visualizations."""
     if isinstance(response, str):
         st.markdown(response)
-        return response, None
+        return response, None,'',''
 
     message, href, data_str, chart_type, column_names, data_column, query = response
     st.markdown(message)
     
     if href:
-        st.markdown(href, unsafe_allow_html=True)
-        df = process_csv_data(href)
-        
-        if df is not None and not df.empty:
-            create_interactive_visuals(df)
-            if chart_type != "none" and 3 <= len(df) <= 24:
-                create_chart(chart_type, df)
-    
-    return message, query
+        st.session_state['Link'] = href
+        st.markdown(st.session_state.Link, unsafe_allow_html=True)
+        # df = process_csv_data(href)        
+        # if df is not None and not df.empty:
+        #     # int_chart = create_interactive_visuals(df)
+        #     if chart_type != "none" and 3 <= len(df) <= 24:
+        #         chart = create_chart(chart_type, df)
+    else:
+        href = ''    
+    return message, query, href,chart_type
 
 # UI Components
 def render_welcome_message():
@@ -86,77 +124,8 @@ def render_sidebar():
         if st.button("🔄 Reset Conversation", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
+        st.markdown("<h5 style='color: gray;'>For support, contact: <a href='mailto:datamanagementai.bk.rw'>datamanagementai.bk.rw</a></h5>", unsafe_allow_html=True)
 
-# Feedback Handling
-def handle_submit_feedback():
-    """Handle feedback submission."""
-    # Update the last message with feedback
-    st.session_state.messages[-1].update({
-        "feedback": "negative",
-        "feedback_comment": st.session_state.get('feedback_comment', '')
-    })
-    
-    log_conversation_details(
-        user_id=st.session_state.get('username', 'anonymous'),
-        question=st.session_state.current_message['prompt'],
-        sql_query=st.session_state.current_message['query'],
-        answer=st.session_state.current_message['message'],
-        feedback="negative",
-        feedback_comment=st.session_state.get('feedback_comment', '')
-    )
-    
-    if 'feedback' in st.session_state:
-        del st.session_state.feedback
-    if 'feedback_comment' in st.session_state:
-        del st.session_state.feedback_comment
-    
-    st.success("Thank you for your feedback!")
-
-def handle_like():
-    """Handle positive feedback."""
-    st.session_state.feedback = "positive"
-    st.session_state.feedback_comment = ""
-    
-    # Update the last message with feedback
-    st.session_state.messages[-1].update({
-        "feedback": "positive",
-        "feedback_comment": ""
-    })
-    
-    log_conversation_details(
-        user_id=st.session_state.get('username', 'anonymous'),
-        question=st.session_state.current_message['prompt'],
-        sql_query=st.session_state.current_message['query'],
-        answer=st.session_state.current_message['message'],
-        feedback="positive",
-        feedback_comment=""
-    )
-    
-    if 'feedback' in st.session_state:
-        del st.session_state.feedback
-
-def handle_dislike():
-    """Handle negative feedback."""
-    st.session_state.feedback = "positive"
-    st.session_state.feedback_comment = ""
-    
-    # Update the last message with feedback
-    st.session_state.messages[-1].update({
-        "feedback": "negative",
-        "feedback_comment": ""
-    })
-    
-    log_conversation_details(
-        user_id=st.session_state.get('username', 'anonymous'),
-        question=st.session_state.current_message['prompt'],
-        sql_query=st.session_state.current_message['query'],
-        answer=st.session_state.current_message['message'],
-        feedback="negative",
-        feedback_comment=""
-    )
-    
-    if 'feedback' in st.session_state:
-        del st.session_state.feedback
 
 
 # Main Application
@@ -169,21 +138,36 @@ def show_analytics():
 
     client = OpenAI(api_key=OPENAI_API_KEY)
 
+    messages = st.session_state.messages
+
     # Display chat messages
-    for message in st.session_state.messages:
+    for n,message in enumerate(messages):
         avatar = str(USER_AVATAR if message["role"] == "user" else BOT_AVATAR)
         with st.chat_message(message["role"], avatar=avatar):
             # Display message content
-            st.markdown(message["content"])
-            
+            st.markdown(message["content"])           
             # Display feedback only if it exists for assistant messages
-            if message["role"] == "assistant" and "feedback" in message and message["feedback"]:
-                feedback_emoji = "👍" if message["feedback"] == "positive" else "👎"
-                feedback_text = message.get('feedback_comment', '')
-                if feedback_text:
-                    st.caption(f"{feedback_emoji} {feedback_text}")
-                else:
-                    st.caption(feedback_emoji)
+            if message["role"] == "assistant" and n >= 1:
+                st.markdown(message['Link'],unsafe_allow_html=True)
+                # st.altair_chart(message['chart'], use_container_width=True)
+                if message['Link'] != '':
+                    df = process_csv_data(message['Link'])        
+                    if df is not None and not df.empty:
+                        # int_chart = create_interactive_visuals(df)
+                        if message['chart_type'] != "none" and 3 <= len(df) <= 24:
+                            create_chart(message['chart_type'],df)
+                # st.bokeh_chart(message['chart'])
+                 
+                feedback_key = f"feedback_{int(n/2)}"
+
+                if feedback_key not in st.session_state:
+                    st.session_state[feedback_key] = None
+                streamlit_feedback(
+                    feedback_type="faces",
+                    optional_text_label="[Optional] provide extra information",
+                    on_submit=_submit_feedback,
+                    key=feedback_key,
+                )
 
     # Chat input handling
     prompt = st.chat_input(
@@ -201,7 +185,8 @@ def show_analytics():
         with st.spinner("Generating response..."):
             with st.chat_message("assistant", avatar=str(BOT_AVATAR)):
                 response = invoke_chain(prompt, st.session_state.messages, st.session_state.get('username', 'anonymous'))
-                message, query = handle_response(response)
+                message, query, link,chart_type= handle_response(response)
+
                 
                 # Store current message
                 st.session_state.current_message = {
@@ -213,7 +198,9 @@ def show_analytics():
                 # Add message to session state immediately
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": message
+                    "content": message,
+                    "Link":link,
+                    "chart_type":chart_type
                 })
                 
                 # Log conversation without feedback
@@ -225,48 +212,19 @@ def show_analytics():
                     feedback=None,
                     feedback_comment=None
                 )
-                
-                # Feedback buttons
-                col1, col2, col3, col4 = st.columns([1, 1, 6, 1])
-                with col1:   
-                    st.button("👍", 
-                        key=f"like_{len(st.session_state.messages)}", 
-                        on_click=handle_like,
-                        use_container_width=False)
+                # time.sleep(10)
+                st.rerun()
 
-                with col2:   
-                    st.button("👎", 
-                        key=f"dislike_{len(st.session_state.messages)}", 
-                        on_click=handle_dislike,
-                        use_container_width=False)
-                        
-                if st.session_state.get('feedback') == "negative":
-                    col1, col2 = st.columns([10, 1])
-                    with col1:
-                        st.warning("Sorry to hear that. Please let us know what went wrong.")
-                    with col2:
-                        if st.button("✕", 
-                            key=f"close_feedback_{len(st.session_state.messages)}", 
-                            use_container_width=False,
-                            on_click=lambda: st.session_state.pop('feedback', None)
-                        ):
-                            st.rerun()
-
-                    feedback_comment = st.text_area(
-                        "What could be improved?",
-                        key=f"feedback_text_{len(st.session_state.messages)}"
-                    )
-                    st.session_state.feedback_comment = feedback_comment
-                    if st.button(
-                        "Submit Feedback", 
-                        key=f"submit_feedback_{len(st.session_state.messages)}", 
-                        on_click=handle_submit_feedback
-                    ):
-                        handle_submit_feedback()
 
     # Show welcome message for new sessions
     if not st.session_state.messages:
         render_welcome_message()
+        # Display custom HTML content
+
+    # components.iframe("https://app.fabric.microsoft.com/reportEmbed?reportId=dafae922-a2b9-40b5-ac81-8c7a3acb7678&autoAuth=true&ctid=9766f6af-73b8-40a2-8694-ede49d30d84e", height=500)
 
 if __name__ == "__main__":
     show_analytics()
+
+
+    

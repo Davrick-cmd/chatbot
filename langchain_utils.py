@@ -46,40 +46,127 @@ LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
 
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain.chains import create_sql_query_chain
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI,OpenAIEmbeddings
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain_community.chat_message_histories import ChatMessageHistory
 from operator import itemgetter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough,RunnableLambda
 from table_details import table_chain as select_table
-from prompts import final_prompt, answer_prompt,input_prompt,check_query_prompt
+from prompts import final_prompt, answer_prompt,input_prompt,check_query_prompt,condense_question_prompt
 import streamlit as st
 from sqlalchemy import create_engine, text
 import json
 from datetime import datetime
-
-
-
+from langchain_core.messages import get_buffer_string
+from langchain.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
+from langchain_core.prompts import MessagesPlaceholder
+# Import chroma as the vector store
+from langchain_community.vectorstores import Chroma
 # from pycaret.utils import get_config
 from bokeh.plotting import figure
 from bokeh.models import HoverTool
+from vector import create_retriever
+from langchain.prompts import PromptTemplate
+from langchain.schema import format_document
 
 
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 llm_4 = ChatOpenAI(model="gpt-4o", temperature=0.0)
-llm_tune01 = ChatOpenAI(model="ft:gpt-4o-2024-08-06:personal:tune01:AJ4Ea2SL",temperature=0.0)
-tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER','BOT_FUNDS_TRANSFER']
+llm_tune01 = ChatOpenAI(model="ft:gpt-4o-2024-08-06:personal:analytics:AcTe4OFX",temperature=0.0)
+embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+
+# role = st.session_state.get("role", "User")  # Default to "User" if role is not set
+
+# # Define tables based on the role
+# if role == "Admin":
+tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER', 'BOT_FUNDS_TRANSFER']
+# else:
+#     tables_to_include = ['ChatbotAccounts_og', 'BOT_CUSTOMER_2','BOT_FUNDS_TRANSFER'] 
+
+
+
+
+
 db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
         include_tables=tables_to_include
     )
+def _combine_documents(docs, document_prompt, document_separator="\n\n"):
+    doc_strings = [format_document(doc, document_prompt) for doc in docs]
+    
+    return document_separator.join(doc_strings)
+
+def retrival_chain():
+    memory = ConversationBufferMemory(
+            return_messages=True,
+            memory_key='chat_history',
+            output_key="answer",
+            input_key="question",
+        )  
+    
+    vector_store = Chroma(
+            persist_directory = "data/vector_stores/BusinessDefinitions",
+            embedding_function=embeddings
+        )
+    # memory = ConversationBufferMemory(memory_key="chat_history",output_key="answer", input_key="question",return_messages=True)
+    # 2. load memory using RunnableLambda. Retrieves the chat_history attribute using itemgetter.
+    # loaded_memory = RunnablePassthrough.assign(
+    #     chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history"),
+    # )
+
+    loaded_memory = RunnablePassthrough.assign(
+        chat_history =  itemgetter("messages")
+    )
+
+    standalone_question_chain = {
+        "standalone_question": {
+            "question": lambda x: x["question"],
+            "chat_history": lambda x: get_buffer_string(x.get("chat_history",[])),
+        }
+        | condense_question_prompt
+        | llm
+        | StrOutputParser(),
+    }
+
+    chain_question = loaded_memory | standalone_question_chain
+
+    retriever = create_retriever(
+                    vector_store = vector_store ,
+                    embeddings = embeddings,
+                    retriever_type="Contextual compression",
+                    base_retriever_search_type="similarity",
+                    base_retriever_k=16,
+                    compression_retriever_k=20,
+                    cohere_api_key="",
+                    cohere_model="rerank-multilingual-v2.0",
+                    cohere_top_n=10,
+                )
+
+    retrieved_documents = {
+        "docs": itemgetter("standalone_question") | retriever,
+        "standalone_question": lambda x: x["standalone_question"],
+    }
+    DEFAULT_DOCUMENT_PROMPT = PromptTemplate.from_template(template="{page_content}")
+    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+
+
+    # Chain the retrieved documents and standalone question into the final prompt
+    generate_query_chain = {
+        "context": lambda x: _combine_documents(docs=x["docs"],document_prompt=DEFAULT_DOCUMENT_PROMPT),
+        "standalone_question": lambda x: x["standalone_question"] 
+    }
+
+    final_chain = chain_question | retrieved_documents | generate_query_chain
+
+    return final_chain
+    
 
 @st.cache_resource
 def get_chain():
     print("Creating chain\n")
-    tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER','BOT_FUNDS_TRANSFER']
+    # tables_to_include = ['ChatbotAccounts', 'BOT_CUSTOMER','BOT_FUNDS_TRANSFER']
 
     db = SQLDatabase.from_uri(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server",
@@ -87,9 +174,9 @@ def get_chain():
     )
 
 
-    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     generate_query = create_sql_query_chain(llm_tune01, db, final_prompt) #using a fine tuned model
-    execute_query = QuerySQLDataBaseTool(db=db)
+
+    # execute_query = QuerySQLDataBaseTool(db=db)
 
     engine = create_engine(
         f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server"
@@ -185,8 +272,8 @@ def get_chain():
 
     chain = (
         RunnablePassthrough.assign(table_names_to_use=select_table) |
-        RunnablePassthrough.assign(query=generate_query).assign(
-            result=itemgetter("question","query", "messages","table_names_to_use") | RunnableLambda(lambda inputs: check_against_definition(inputs[0],inputs[1],inputs[2],inputs[3])) |
+        RunnablePassthrough.assign(query= generate_query).assign(
+            result=itemgetter("question","query", "messages","table_names_to_use","context") | RunnableLambda(lambda inputs: check_against_definition(inputs[0],inputs[1],inputs[2],inputs[3],inputs[4])) |
             RunnableLambda(lambda inputs: execute_query_with_handling(inputs[0], inputs[1]))
         ).assign(formatted_result=lambda result: format_results_to_df(result))
         .assign(
@@ -330,8 +417,29 @@ def log_conversation_details(
 
 def invoke_chain(question, messages, user_id: str = "anonymous"):
     history = create_history(messages)
+    # Make sure 'standalone_question' has the correct input, and 'question' and 'messages' are assigned.
     input_check = input_prompt | llm_4 | StrOutputParser() | str
-    answer = input_check.invoke({"question":question,"messages": history.messages})
+
+    # # Now invoke the chain with the proper data
+    # answer = input_check.invoke({"question": question, "messages": history.messages})
+
+    # Retrieve context from the retrieval chain
+    final_chain = retrival_chain()
+
+    #Invoke the retrieval chain
+    retrieved_context = final_chain.invoke({"question": question, "messages": history.messages})
+    # Use the output from final_chain to pass standalone_question and context
+    standalone_question = retrieved_context["standalone_question"]
+    context = retrieved_context["context"]
+
+
+    # Now invoke the chain with the context, question, and messages
+    answer = input_check.invoke({
+        "question": question, 
+        "messages": history.messages, 
+        "context": context,  # Adding the context here,
+        "standalone_question":standalone_question
+    })
 
     # Return early for non-data questions
     if answer != '1':
@@ -339,7 +447,7 @@ def invoke_chain(question, messages, user_id: str = "anonymous"):
     
     # For data-related questions
     chain = get_chain()
-    response = chain.invoke({"question": question, "top_k": 3, "messages": history.messages})
+    response = chain.invoke({"question": question, "top_k": 3, "messages": history.messages,"context":context,"standalone_question":standalone_question})
     
     history.add_user_message(question)
     history.add_ai_message(response)
@@ -365,6 +473,13 @@ def create_chart(chart_type: str, df: pd.DataFrame) -> None:
         numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
         categorical_cols = df.select_dtypes(include=['object', 'category']).columns
         temporal_cols = df.select_dtypes(include=['datetime64']).columns
+
+        # chart_type = st.selectbox("Select Chart Type", ["bar", "line", "pie", "scatter", "histogram", "box"])
+
+        chart_type = st.selectbox("Select Chart Type", 
+                          ["bar", "line", "pie", "scatter", "histogram", "box"], 
+                          index=["bar", "line", "pie", "scatter", "histogram", "box"].index(chart_type))
+
 
         if chart_type == "bar":
             if len(numeric_cols) < 1:
@@ -457,10 +572,90 @@ def create_chart(chart_type: str, df: pd.DataFrame) -> None:
                 y=alt.Y(num_col, title=num_col)
             ).interactive()
             st.altair_chart(chart, use_container_width=True)
-
+        
     except Exception as e:
         st.error(f"Error creating chart: {str(e)}")
         print(f"Chart creation error: {type(e).__name__}: {str(e)}")
+
+
+# def create_chart(chart_type: str, df: pd.DataFrame) -> Optional[Union[alt.Chart, plt.Figure]]:
+#     """
+#     Create and return dynamic chart objects for visualization based on a DataFrame.
+
+#     Args:
+#         chart_type (str): Type of chart (bar, line, pie, scatter, histogram, box).
+#         df (pd.DataFrame): DataFrame to visualize.
+
+#     Returns:
+#         Optional[Union[alt.Chart, plt.Figure]]: Chart object for rendering, or None if an error occurs.
+#     """
+#     try:
+#         if not isinstance(df, pd.DataFrame) or df.empty:
+#             raise ValueError("Invalid or empty DataFrame")
+
+#         numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+#         categorical_cols = df.select_dtypes(include=['object', 'category']).columns
+#         temporal_cols = df.select_dtypes(include=['datetime64']).columns
+
+#         if chart_type == "bar" and numeric_cols.any():
+#             x_col = numeric_cols[0]
+#             y_col = numeric_cols[1] if len(numeric_cols) > 1 else numeric_cols[0]
+#             chart = alt.Chart(df).mark_bar().encode(
+#                 x=alt.X(x_col, title=x_col),
+#                 y=alt.Y(y_col, title=y_col, aggregate='sum'),
+#                 tooltip=list(df.columns)
+#             ).interactive()
+#             return chart
+
+#         elif chart_type == "line" and numeric_cols.any():
+#             x_col = temporal_cols[0] if temporal_cols.any() else df.columns[0]
+#             y_col = numeric_cols[0]
+#             chart = alt.Chart(df).mark_line().encode(
+#                 x=alt.X(x_col, title=x_col),
+#                 y=alt.Y(y_col, title=y_col),
+#                 tooltip=list(df.columns)
+#             ).interactive()
+#             return chart
+
+#         elif chart_type == "scatter" and len(numeric_cols) >= 2:
+#             x_col, y_col = numeric_cols[:2]
+#             chart = alt.Chart(df).mark_circle().encode(
+#                 x=alt.X(x_col, title=x_col),
+#                 y=alt.Y(y_col, title=y_col),
+#                 tooltip=list(df.columns)
+#             ).interactive()
+#             return chart
+
+#         elif chart_type == "pie" and categorical_cols.any() and numeric_cols.any():
+#             cat_col = categorical_cols[0]
+#             val_col = numeric_cols[0]
+#             fig, ax = plt.subplots(figsize=(10, 10))
+#             df.groupby(cat_col)[val_col].sum().plot(kind='pie', ax=ax, autopct='%1.1f%%')
+#             return fig
+
+#         elif chart_type == "histogram" and numeric_cols.any():
+#             num_col = numeric_cols[0]
+#             chart = alt.Chart(df).mark_bar().encode(
+#                 x=alt.X(num_col, bin=alt.Bin(maxbins=30)),
+#                 y='count()'
+#             ).interactive()
+#             return chart
+
+#         elif chart_type == "box" and numeric_cols.any():
+#             num_col = numeric_cols[0]
+#             chart = alt.Chart(df).mark_boxplot().encode(
+#                 y=alt.Y(num_col, title=num_col)
+#             ).interactive()
+#             return chart
+
+#         else:
+#             return chart
+#             raise ValueError(f"Unsupported chart type: {chart_type}")
+
+#     except Exception as e:
+#         return None  # or raise an error if desired
+
+
 
 
 
@@ -591,7 +786,7 @@ def create_interactive_visuals(data: Union[pd.DataFrame, list], target_column: O
 
 
 
-def check_against_definition(question, query, chat_history,table_names):
+def check_against_definition(question, query, chat_history,table_names,context):
     """
     Use the LLM to check the query against the definitions and adjust it if necessary.
 
@@ -620,7 +815,7 @@ def check_against_definition(question, query, chat_history,table_names):
     validated_query_chain = (check_query_prompt | llm_tune01 | StrOutputParser())
     
     # Invoke the chain and get the validated or corrected query
-    validated_query = validated_query_chain.invoke({"question": question,"query":query,"messages":chat_history,"table_info":table_info})
+    validated_query = validated_query_chain.invoke({"question": question,"query":query,"messages":chat_history,"table_info":table_info,"context":context})
 
     print(f"LLM Intial Query: {query}\n")
 
