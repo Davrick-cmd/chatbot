@@ -35,7 +35,7 @@ class Config:
     AD_TIMEOUT = 10  # seconds
     AD_SERVER = "bk.local"
     AD_DOMAIN = "bk.local"
-    AD_USER = 'datamanagementai'
-    AD_USER_PASSWORD = "Kigali2024@"
+    AD_USER = ''
+    AD_USER_PASSWORD = ""
     AD_TIMEOUT=10
     AD_SEARCH_BASE='DC=bk,DC=local'
