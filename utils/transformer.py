@@ -1,6 +1,1021 @@
 import json
 
 examples = [
+    
+{
+"input":"Give list of digital channels in the bank",
+"query":"""
+select distinct CHANNEL from BOT_FUNDS_TRANSFER  where CHANNEL IN ('IB','MOBILE APP','MOBISERVE','MTN PULL','MTN PUSH','AIRTEL PUSH','E-COMMERCE');
+"""
+},
+{
+"input":"Give list of digital channels in the bank used in the year 2024",
+"query":"""
+select distinct CHANNEL from BOT_FUNDS_TRANSFER  where CHANNEL IN ('IB','MOBILE APP','MOBISERVE','MTN PULL','MTN PUSH','AIRTEL PUSH','E-COMMERCE')
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000';
+"""
+},
+{
+"input":"How many unique digital channels users in the bank for the year 2024",
+"query":"""
+SELECT count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,SEGMENT,
+    CHANNEL, 
+    TRANSACTION_DATE, 
+    TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+        b.CHANNEL IN ('IB','MOBILE APP','MOBISERVE','MTN PULL','MTN PUSH','AIRTEL PUSH','E-COMMERCE')
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL IN ('IB','MOBILE APP','MOBISERVE','MTN PULL','MTN PUSH','AIRTEL PUSH','E-COMMERCE')
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f;
+"""
+},
+{
+"input":"How many unique digital channels users per channel in the bank for the year 2024",
+"query":"""
+SELECT CHANNEL, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,SEGMENT,
+    CHANNEL, 
+    TRANSACTION_DATE, 
+    TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+        b.CHANNEL IN ('IB','MOBILE APP','MOBISERVE','MTN PULL','MTN PUSH','AIRTEL PUSH','E-COMMERCE')
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL IN ('IB','MOBILE APP','MOBISERVE','MTN PULL','MTN PUSH','AIRTEL PUSH','E-COMMERCE')
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by CHANNEL;
+"""
+},
+{
+
+"input":"How many unique digital channels users per channel and feature in the bank for the year 2024",
+"query":"""
+SELECT CHANNEL,TRANSACTION_DESCRIPTION as FEATURE, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,SEGMENT,
+    CHANNEL, 
+    TRANSACTION_DATE, 
+    TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+        b.CHANNEL IN ('IB','MOBILE APP','MOBISERVE','MTN PULL','MTN PUSH','AIRTEL PUSH','E-COMMERCE')
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL IN ('IB','MOBILE APP','MOBISERVE','MTN PULL','MTN PUSH','AIRTEL PUSH','E-COMMERCE')
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by CHANNEL,TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique user in IB Channel for each feature for the year 2024",
+"query":"""
+SELECT TRANSACTION_DESCRIPTION as FEATURE, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,
+    TRANSACTION_DESCRIPTION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+        b.CHANNEL = 'IB'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='IB'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"Give unique users in mobile app Channel for each feature for the year 2024",
+"query":"""
+SELECT TRANSACTION_DESCRIPTION as FEATURE, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,
+    TRANSACTION_DESCRIPTION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='MOBILE APP'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='MOBILE APP'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique user in mobile app Channel for each feature for the year 2024",
+"query":"""
+SELECT TRANSACTION_DESCRIPTION as FEATURE, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,
+    TRANSACTION_DESCRIPTION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='MOBISERVE'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='MOBISERVE'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique user in Bk Yacu or Agency banking Channel for each feature for the year 2024",
+"query":"""
+SELECT TRANSACTION_DESCRIPTION as FEATURE, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,
+    TRANSACTION_DESCRIPTION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='BK YACU'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='BK YACU'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique user in ecommerce Channel for each feature for the year 2024",
+"query":"""
+SELECT TRANSACTION_DESCRIPTION as FEATURE, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,
+    TRANSACTION_DESCRIPTION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='E-COMMERCE'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='E-COMMERCE'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique user in MTN pull for the year 2024",
+"query":"""
+SELECT count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='MTN PULL'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='MTN PULL'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique user in MTN push for the year 2024",
+"query":"""
+SELECT TRANSACTION_DESCRIPTION as FEATURE, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,
+    TRANSACTION_DESCRIPTION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='MTN PUSH'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='MTN PUSH'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique user in Airtel push for the year 2024",
+"query":"""
+SELECT count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='AIRTEL PUSH'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='AIRTEL PUSH'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique user in Pos per feature for the year 2024",
+"query":"""
+SELECT TRANSACTION_DESCRIPTION as FEATURE, count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER,
+    TRANSACTION_DESCRIPTION from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='POS'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='POS'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f group by TRANSACTION_DESCRIPTION;
+"""
+},
+{
+"input":"List unique users in Pos for the year 2024",
+"query":"""
+SELECT count (distinct
+    CUSTOMER) as unique_users from (
+
+SELECT distinct
+    CUSTOMER from 
+
+(SELECT 
+    DEBIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT, 
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.DEBIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.DEBIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='POS'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d 
+
+
+UNION ALL
+
+SELECT 
+    CREDIT_CUSTOMER_NO AS CUSTOMER,
+    d.CHANNEL,SEGMENT,
+    TRANSACTION_DATE, 
+    d.TRANSACTION_DESCRIPTION, 
+    PAYMENT_DETAILS,
+    TRANSACTED_AMOUNT,
+    COMMISSION
+FROM (
+    SELECT 
+        a.CREDIT_CUSTOMER_NO,
+        b.CHANNEL,SEGMENT,
+        a.TRANSACTION_DATE,
+        b.TRANSACTION_DESCRIPTION,
+        a.PAYMENT_DETAILS,
+        a.TRANSACTED_AMOUNT,
+        a.COMMISSION
+    FROM 
+        BOT_FUNDS_TRANSFER a
+    LEFT JOIN 
+        V_T24_FT_TXN_TYPE_CHANNELS b 
+        ON a.TRANSACTION_TYPE = b.TRANSACTION_TYPE
+    LEFT JOIN 
+        BOT_CUSTOMER c 
+        ON a.CREDIT_CUSTOMER_NO = c.CUSTOMER_NO
+    WHERE 
+         b.CHANNEL ='POS'
+and TRANSACTION_DATE >= '2024-01-01 00:00:00.000' and TRANSACTION_DATE <= '2024-12-31 00:00:00.000'
+)d
+)e
+)f;
+"""
+},
     {
         "input": "How many customers do we have?",
         "query": """-- A customer is defined as someone who has an account with a category starting with '1' (e.g., Current) or '6' (e.g., Savings), 
@@ -90,21 +1105,19 @@ examples = [
     {
         "input": "Give me account activity status",
         "query": """
-                WITH Filtered_Accounts AS (
+               WITH Filtered_Accounts AS (
                     SELECT 
                         ACCOUNT_NUMBER,  -- Ensure this column represents your account identifier
                         CATEGORY,
                         LAST_TRANS_DATE,
                         CASE 
-                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -90, GETDATE())) 
+                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
                                 OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()))) THEN 'ACTIVE'
-                            WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -90, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
-                                OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE())) THEN 'INACTIVE'
                             WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE())) THEN 'DORMANT'
+                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE())) 
+                                OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE())) THEN 'INACTIVE'
                             WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE())) THEN 'DOMCLOSED'
+                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE())) THEN 'DORMANT'
                             WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE())) THEN 'UNCLAIMED'
                             ELSE NULL
                         END AS Status,
@@ -124,15 +1137,13 @@ examples = [
                     SUM(CASE WHEN Status = 'ACTIVE' THEN 1 ELSE 0 END) AS Active_Accounts,
                     SUM(CASE WHEN Status = 'INACTIVE' THEN 1 ELSE 0 END) AS Inactive_Accounts,
                     SUM(CASE WHEN Status = 'DORMANT' THEN 1 ELSE 0 END) AS Dormant_Accounts,
-                    SUM(CASE WHEN Status = 'DOMCLOSED' THEN 1 ELSE 0 END) AS Dom_Closed_Accounts,
                     SUM(CASE WHEN Status = 'UNCLAIMED' THEN 1 ELSE 0 END) AS Unclaimed_Accounts,
                     CAST(
-                        (SUM(CASE WHEN Status IN ('DOMCLOSED', 'UNCLAIMED') THEN 1 ELSE 0 END) * 1.0) / 
+                        (SUM(CASE WHEN Status IN ('DORMANT', 'UNCLAIMED') THEN 1 ELSE 0 END) * 1.0) / 
                         NULLIF(COUNT(DISTINCT ACCOUNT_NUMBER), 0) * 100 AS DECIMAL(10, 2)
                     ) AS Churn_Rate
                 FROM Filtered_Accounts 
                 GROUP BY Account_Type
-
                 """
     },
     { 
@@ -172,15 +1183,13 @@ examples = [
                     SELECT 
                         CUSTOMER_NUMBER,
                         CASE 
-                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -90, GETDATE())) 
+                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
                                 OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360,GETDATE()))) THEN 1
-                            WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -90, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE()) 
-                                OR CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360,GETDATE())THEN 2
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) THEN 3
+                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) 
+                                OR CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360,GETDATE())THEN 2
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE()) THEN 4
+                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE()) THEN 3
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE()) THEN 5
                             ELSE NULL
                         END AS Status
@@ -197,69 +1206,19 @@ examples = [
                     GROUP BY CUSTOMER_NUMBER
                 )
                 
-                
                 SELECT
                     COUNT(DISTINCT c.CUSTOMER_NO) AS TOTAL_CUSTOMERS,
                     COUNT(DISTINCT CASE WHEN cs.Status_Rank = 1 THEN c.CUSTOMER_NO END) AS ACTIVE_CUSTOMERS,
                     COUNT(DISTINCT CASE WHEN cs.Status_Rank = 2 THEN c.CUSTOMER_NO END) AS INACTIVE_CUSTOMERS,
                     COUNT(DISTINCT CASE WHEN cs.Status_Rank = 3 THEN c.CUSTOMER_NO END) AS DORMANT_CUSTOMERS,
-                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 4 THEN c.CUSTOMER_NO END) AS DOM_CLOSED_CUSTOMERS,
                     COUNT(DISTINCT CASE WHEN cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) AS UNCLAIMED_CUSTOMERS,
                     CAST(
-                    (COUNT(DISTINCT CASE WHEN cs.Status_Rank = 4 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) *1.0) /
+                    (COUNT(DISTINCT CASE WHEN cs.Status_Rank = 3 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) *1.0) /
                     (COUNT(DISTINCT c.CUSTOMER_NO)) * 100 AS DECIMAL(10,2)) AS CHURN_RATE
 
                 FROM BOT_CUSTOMER c
                 JOIN Customer_Status cs ON c.CUSTOMER_NO = cs.CUSTOMER_NUMBER;
                     """
-    },
-    {   "input":"How many dom closed customers do we have?",
-        "query":"""
-                WITH Filtered_Accounts AS (
-                    SELECT 
-                        CUSTOMER_NUMBER,
-                        CASE 
-                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -90, GETDATE())) 
-                                OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360,GETDATE()))) THEN 1
-                            WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -90, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE()) 
-                                OR CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360,GETDATE())THEN 2
-                            WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) THEN 3
-                            WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE()) THEN 4
-                            WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE()) THEN 5
-                            ELSE NULL
-                        END AS Status
-                    FROM ChatbotAccounts
-                    WHERE CATEGORY NOT IN ('1080', '1031')
-                ),
-                
-                Customer_Status AS (
-                    SELECT 
-                        CUSTOMER_NUMBER,
-                        MIN(status) AS Status_Rank
-                    FROM Filtered_Accounts
-                    WHERE Status IS NOT NULL
-                    GROUP BY CUSTOMER_NUMBER
-                )
-                
-                
-                SELECT
-                    COUNT(DISTINCT c.CUSTOMER_NO) AS TOTAL_CUSTOMERS,
-                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 1 THEN c.CUSTOMER_NO END) AS ACTIVE_CUSTOMERS,
-                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 2 THEN c.CUSTOMER_NO END) AS INACTIVE_CUSTOMERS,
-                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 3 THEN c.CUSTOMER_NO END) AS DORMANT_CUSTOMERS,
-                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 4 THEN c.CUSTOMER_NO END) AS DOM_CLOSED_CUSTOMERS,
-                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) AS UNCLAIMED_CUSTOMERS,
-                    CAST(
-                    (COUNT(DISTINCT CASE WHEN cs.Status_Rank = 4 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) *1.0) /
-                    (COUNT(DISTINCT c.CUSTOMER_NO)) * 100 AS DECIMAL(10,2)) AS CHURN_RATE
-
-                FROM BOT_CUSTOMER c
-                JOIN Customer_Status cs ON c.CUSTOMER_NO = cs.CUSTOMER_NUMBER;
-        """
-
     },
     {
         "input":"What is our churn rate number?",
@@ -268,15 +1227,13 @@ examples = [
                     SELECT 
                         CUSTOMER_NUMBER,
                         CASE 
-                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -90, GETDATE())) 
+                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
                                 OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360,GETDATE()))) THEN 1
-                            WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -90, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE()) 
-                                OR CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360,GETDATE())THEN 2
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) THEN 3
+                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) 
+                                OR CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360,GETDATE())THEN 2
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE()) THEN 4
+                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE()) THEN 3
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE()) THEN 5
                             ELSE NULL
                         END AS Status
@@ -295,9 +1252,9 @@ examples = [
                 
                 SELECT 
                     COUNT(DISTINCT c.CUSTOMER_NO) AS TOTAL_CUSTOMERS,
-                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 4 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) AS CHRN_CUSTOMERS,
+                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 3 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) AS CHRN_CUSTOMERS,
                     CAST(
-                    (COUNT(DISTINCT CASE WHEN cs.Status_Rank = 4 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) *1.0) /
+                    (COUNT(DISTINCT CASE WHEN cs.Status_Rank = 3 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) *1.0) /
                     (COUNT(DISTINCT c.CUSTOMER_NO)) * 100 AS DECIMAL(10,2)) AS CHURN_RATE
 
                 FROM BOT_CUSTOMER c
@@ -311,15 +1268,13 @@ examples = [
                     SELECT 
                         CUSTOMER_NUMBER,
                         CASE 
-                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -90, GETDATE())) 
+                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
                                 OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360,GETDATE()))) THEN 1
-                            WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -90, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE()) 
-                                OR CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360,GETDATE())THEN 2
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) THEN 3
+                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) 
+                                OR CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360,GETDATE())THEN 2
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE()) THEN 4
+                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE()) THEN 3
                             WHEN CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE()) THEN 5
                             ELSE NULL
                         END AS Status
@@ -342,10 +1297,9 @@ examples = [
                     COUNT(DISTINCT CASE WHEN cs.Status_Rank = 1 THEN c.CUSTOMER_NO END) AS ACTIVE_CUSTOMERS,
                     COUNT(DISTINCT CASE WHEN cs.Status_Rank = 2 THEN c.CUSTOMER_NO END) AS INACTIVE_CUSTOMERS,
                     COUNT(DISTINCT CASE WHEN cs.Status_Rank = 3 THEN c.CUSTOMER_NO END) AS DORMANT_CUSTOMERS,
-                    COUNT(DISTINCT CASE WHEN cs.Status_Rank = 4 THEN c.CUSTOMER_NO END) AS DOM_CLOSED_CUSTOMERS,
                     COUNT(DISTINCT CASE WHEN cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) AS UNCLAIMED_CUSTOMERS,
                     CAST(
-                    (COUNT(DISTINCT CASE WHEN cs.Status_Rank = 4 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) *1.0) /
+                    (COUNT(DISTINCT CASE WHEN cs.Status_Rank = 3 OR cs.Status_Rank = 5 THEN c.CUSTOMER_NO END) *1.0) /
                     (COUNT(DISTINCT c.CUSTOMER_NO)) * 100 AS DECIMAL(10,2)) AS CHURN_RATE
 
                 FROM BOT_CUSTOMER c
@@ -414,52 +1368,50 @@ examples = [
         """
     },
     {
-        "input":"How many dormant customers will become dom closed customers in the 30 days if they don't transact",
+        "input":"How many inactive customers will become dormant customers in the next 30 days if they don't transact",
         "query":"""
-                WITH Filtered_Accounts AS (
-                    SELECT 
-                        CUSTOMER_NUMBER,
-                        CASE 
-                            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -90, GETDATE())) 
-                                OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()))) THEN 1  -- Active
-                            WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -90, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
-                                OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE())) THEN 2  -- Inactive
-                            WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE())) THEN 3  -- Dormant
-                            WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
-                                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE())) THEN 4  -- Dom Closed
-                            WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE())) THEN 5  -- Unclaimed
-                            ELSE NULL
-                        END AS Status
-                    FROM ChatbotAccounts
-                    WHERE CATEGORY NOT IN ('1080', '1031')
-                ),
+               WITH Filtered_Accounts AS (
+    SELECT 
+        CUSTOMER_NUMBER,
+        CASE 
+            WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
+                OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()))) THEN 1  -- Active
+            WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
+                AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE())) 
+                OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE())) THEN 2  -- Inactive
+            WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
+                AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE())) THEN 3  -- Dormant
+            WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE())) THEN 4  -- Unclaimed
+            ELSE NULL
+        END AS Status
+    FROM ChatbotAccounts
+    WHERE CATEGORY NOT IN ('1080', '1031') 
+    AND SUBSTRING(CATEGORY, 1, 1) <> '3'
+),
 
-                Customer_Status AS (
-                    SELECT 
-                        CUSTOMER_NUMBER,
-                        MIN(Status) AS Status_Rank
-                    FROM Filtered_Accounts
-                    WHERE Status IS NOT NULL
-                    GROUP BY CUSTOMER_NUMBER
-                ),
+Customer_Status AS (
+    SELECT 
+        CUSTOMER_NUMBER,
+        MIN(Status) AS Status_Rank
+    FROM Filtered_Accounts
+    WHERE Status IS NOT NULL
+    GROUP BY CUSTOMER_NUMBER
+),
 
-                Dormant_Customers AS (
-                    SELECT 
-                        cs.CUSTOMER_NUMBER
-                    FROM Customer_Status cs
-                    WHERE cs.Status_Rank = 3  -- Identifying dormant customers
-                )
+Dormant_Customers AS (
+    SELECT 
+        cs.CUSTOMER_NUMBER
+    FROM Customer_Status cs
+    JOIN ChatbotAccounts a ON cs.CUSTOMER_NUMBER = a.CUSTOMER_NUMBER
+    WHERE 
+        cs.Status_Rank = 2  -- Inactive customers
+        AND a.LAST_TRANS_DATE <= DATEADD(DAY, -330, GETDATE()) -- Inactive for at least 330 days
+        AND a.LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) -- Will transition to Dormant soon
+)
 
-                SELECT
-                count(DISTINCT dc.CUSTOMER_NUMBER)
-                FROM  
-                    Dormant_Customers dc
-                JOIN ChatbotAccounts a ON dc.CUSTOMER_NUMBER = a.CUSTOMER_NUMBER
-                WHERE 
-                    a.LAST_TRANS_DATE < DATEADD(DAY, -330, GETDATE());
-
+SELECT
+    COUNT(DISTINCT arc.CUSTOMER_NUMBER) AS At_Risk_To_Dormant_Count
+FROM Dormant_Customers arc;
         """
     },
     {
@@ -495,56 +1447,7 @@ examples = [
                 FROM DistinctCounts;
 
             """
-    },
-    {
-    "input":"How many customers will churn in the next 30 days?",
-    "query":"""
-            WITH Filtered_Accounts AS (
-                SELECT 
-                    CUSTOMER_NUMBER,
-                    CASE 
-                        WHEN ((CATEGORY LIKE '1%' AND LAST_TRANS_DATE > DATEADD(DAY, -180, GETDATE())) 
-                            OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()))) THEN 1  -- Active
-                        WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -180, GETDATE()) 
-                            AND LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE())) 
-                            OR (CATEGORY LIKE '6%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE())) THEN 2  -- Inactive
-                        WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE <= DATEADD(DAY, -360, GETDATE()) 
-                            AND LAST_TRANS_DATE > DATEADD(DAY, -1800, GETDATE())) THEN 3  -- Dormant
-                        WHEN (CATEGORY LIKE '1%' AND LAST_TRANS_DATE < DATEADD(DAY, -1800, GETDATE())) THEN 4  -- Unclaimed
-                        ELSE NULL
-                    END AS Status
-                FROM ChatbotAccounts
-                WHERE CATEGORY NOT IN ('1080', '1031') 
-                AND SUBSTRING(CATEGORY, 1, 1) <> '3'
-            ),
-            
-            Customer_Status AS (
-                SELECT 
-                    CUSTOMER_NUMBER,
-                    MIN(Status) AS Status_Rank
-                FROM Filtered_Accounts
-                WHERE Status IS NOT NULL
-                GROUP BY CUSTOMER_NUMBER
-            ),
-            
-            At_Risk_Customers AS (
-                SELECT 
-                    cs.CUSTOMER_NUMBER
-                FROM Customer_Status cs
-                JOIN ChatbotAccounts a ON cs.CUSTOMER_NUMBER = a.CUSTOMER_NUMBER
-                WHERE 
-                    cs.Status_Rank = 2  -- Inactive customers
-                    AND a.LAST_TRANS_DATE <= DATEADD(DAY, -330, GETDATE()) -- Inactive for at least 330 days
-                    AND a.LAST_TRANS_DATE > DATEADD(DAY, -360, GETDATE()) -- Will transition to Dormant soon
-            )
-            
-            SELECT
-                COUNT(DISTINCT arc.CUSTOMER_NUMBER) AS At_Risk_To_Dormant_Count
-            FROM At_Risk_Customers arc;
-
-                    """
-            }
-
+    }
 ]
 
 def transform_to_jsonl(input_data_list, output_file, table_info_holder='', definitions_string=''):
@@ -637,6 +1540,4 @@ input_example = load_examples_from_json(input_json_raw_file)
 
 transform_to_jsonl(input_example, output_jsonl_file)
 print(f"Data appended to {output_jsonl_file}.")
-
-
 

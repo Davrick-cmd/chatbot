@@ -25,7 +25,9 @@ from langchain_community.document_loaders import (
     CSVLoader,
     Docx2txtLoader,
     WebBaseLoader,
-    FireCrawlLoader
+    FireCrawlLoader,
+    PDFMinerLoader,
+    PyMuPDFLoader
 )
 
 # text_splitter
@@ -60,7 +62,7 @@ from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 # Import streamlit
 import streamlit as st
 
-from doc_langchain_utils import instantiate_LLM, custom_ConversationalRetrievalChain
+from doc_langchain_utils import instantiate_LLM, custom_ConversationalRetrievalChain,create_memory
 from urllib.parse import urljoin, urlparse
 from langchain_community.vectorstores.utils import filter_complex_metadata
 
@@ -148,7 +150,7 @@ def langchain_document_loader():
         documents.extend(txt_loader.load())
 
         pdf_loader = DirectoryLoader(
-            TMP_DIR.as_posix(), glob="**/*.pdf", loader_cls=PyPDFLoader, show_progress=True
+            TMP_DIR.as_posix(), glob="**/*.pdf", loader_cls=PyMuPDFLoader, show_progress=True
         )
         documents.extend(pdf_loader.load())
 
@@ -159,10 +161,7 @@ def langchain_document_loader():
         documents.extend(csv_loader.load())
 
         doc_loader = DirectoryLoader(
-            TMP_DIR.as_posix(),
-            glob="**/*.docx",
-            loader_cls=Docx2txtLoader,
-            show_progress=True,
+            TMP_DIR.as_posix(), glob="**/*.docx",loader_cls=Docx2txtLoader,show_progress=True,
         )
         documents.extend(doc_loader.load())
     elif st.session_state.website and not st.session_state.uploaded_file_list:
@@ -517,9 +516,15 @@ def retrieval_blocks(
     vectorstore_name="Vit_All_OpenAI_Embeddings",
     embeddings='Vectorstore backed retriever',  
     retriever_type="Vectorstore_backed_retriever",
-    base_retriever_search_type="similarity", base_retriever_k=10, base_retriever_score_threshold=None,
+    base_retriever_search_type="similarity", 
+    base_retriever_k=10,
+    base_retriever_fetch_k=None,
+    base_retriever_lambda_mult=None,
+    base_retriever_score_threshold=None,
     compression_retriever_k=16,
-    cohere_api_key="***", cohere_model="rerank-multilingual-v2.0", cohere_top_n=8,
+    cohere_api_key="***", 
+    cohere_model="rerank-multilingual-v2.0",
+    cohere_top_n=8,
 ):
     """
     Rertieval includes: document loaders, text splitter, vectorstore and retriever. 
@@ -552,14 +557,31 @@ def retrieval_blocks(
             persist_directory = LOCAL_VECTOR_STORE_DIR.as_posix() + "/" + vectorstore_name,
             embedding_function=embeddings
         )
-            
-        # 6. base retriever: Vector store-backed retriever 
-        base_retriever = Vectorstore_backed_retriever(
-            vector_store,
-            search_type=base_retriever_search_type,
-            k=base_retriever_k,
-            score_threshold=base_retriever_score_threshold
-        )
+
+         # Configure search kwargs
+        search_kwargs = {
+            "k": base_retriever_k,
+            "score_threshold": base_retriever_score_threshold
+        }
+
+        # Add MMR parameters only when using mmr search
+        if base_retriever_search_type.lower() == "mmr":
+            search_kwargs["fetch_k"] = base_retriever_fetch_k or base_retriever_k * 2
+            search_kwargs["lambda_mult"] = base_retriever_lambda_mult or 0.5
+
+            # Create base retriever using native LangChain method
+            base_retriever = vector_store.as_retriever(
+                search_type=base_retriever_search_type,
+                search_kwargs=search_kwargs
+            )
+        else:
+            # 6. base retriever: Vector store-backed retriever 
+            base_retriever = Vectorstore_backed_retriever(
+                vector_store,
+                search_type=base_retriever_search_type,
+                k=base_retriever_k,
+                score_threshold=base_retriever_score_threshold
+            )
         retriever = None
         if retriever_type=="Vectorstore backed retriever": 
             retriever = base_retriever
@@ -671,36 +693,113 @@ def create_vectorstore():
                     st.info(
                         f"Vectorstore **{st.session_state.vector_store_name}** is created successfully."
                     )
-
-                    # 7. Create retriever
-                    st.session_state.retriever = create_retriever(
-                        vector_store=st.session_state.vector_store,
+                    memory = create_memory('gpt-4o')
+                    st.session_state.memory = memory
+                    st.session_state.selected_vectorstore_name = st.session_state.vector_store_name
+                    # Create retriever chains
+                    st.session_state.retriever_general_summary = retrieval_blocks(
+                        vectorstore_name=st.session_state.selected_vectorstore_name,
+                        embeddings=embeddings,
+                        retriever_type=st.session_state.retriever_type,
+                        base_retriever_search_type="mmr",
+                        base_retriever_k=80,  # Default value, will be overridden by _get_retrieval_params
+                        base_retriever_score_threshold=None,  # Default value, will be overridden
+                        base_retriever_fetch_k=None,  # New MMR parameter
+                        base_retriever_lambda_mult=None,  # New MMR parameter
+                        compression_retriever_k=80,
+                        cohere_api_key=st.session_state.cohere_api_key,
+                        cohere_model="rerank-multilingual-v2.0",
+                        cohere_top_n=80
+                    )
+                    
+                    st.session_state.retriever_question_specific = retrieval_blocks(
+                        vectorstore_name=st.session_state.selected_vectorstore_name,
                         embeddings=embeddings,
                         retriever_type=st.session_state.retriever_type,
                         base_retriever_search_type="similarity",
-                        base_retriever_k=16,
-                        compression_retriever_k=20,
+                        base_retriever_k=10,  # Default value, will be overridden by _get_retrieval_params
+                        base_retriever_score_threshold=None,  # Default value, will be overridden
+                        compression_retriever_k=5,
                         cohere_api_key=st.session_state.cohere_api_key,
                         cohere_model="rerank-multilingual-v2.0",
-                        cohere_top_n=10,
+                        cohere_top_n=5,
                     )
 
-                    # 8. Create memory and ConversationalRetrievalChain
-                    (
-                        st.session_state.chain,
-                        st.session_state.memory,
-                    ) = custom_ConversationalRetrievalChain(
-                        llm = instantiate_LLM(
-                            LLM_provider="OpenAI",model_name="gpt-4o",api_key=openai_api_key,temperature=0.5
+                    st.session_state.retriever_summary_specific = retrieval_blocks(
+                        vectorstore_name=st.session_state.selected_vectorstore_name,
+                        embeddings=embeddings,
+                        retriever_type=st.session_state.retriever_type,
+                        base_retriever_search_type="similarity",
+                        base_retriever_k=30,  # Default value, will be overridden by _get_retrieval_params
+                        base_retriever_score_threshold=None,  # Default value, will be overridden
+                        compression_retriever_k=30,
+                        cohere_api_key=st.session_state.cohere_api_key,
+                        cohere_model="rerank-multilingual-v2.0",
+                        cohere_top_n=30,
+                    )
+                    
+                    # Create three different chains sharing the same memory
+                    st.session_state.chain_general_summary = custom_ConversationalRetrievalChain(
+                        llm=instantiate_LLM(
+                            LLM_provider="OpenAI",
+                            model_name="gpt-4o",
+                            api_key=openai_api_key,
+                            temperature=0.1
                         ),
-                        condense_question_llm = instantiate_LLM(
-                            LLM_provider="OpenAI",model_name="gpt-4o",api_key=openai_api_key,temperature=0.1
-                        ), 
-                        retriever=st.session_state.retriever,
+                        condense_question_llm=instantiate_LLM(
+                            LLM_provider="OpenAI",
+                            model_name="gpt-4o",
+                            api_key=openai_api_key,
+                            temperature=0.1
+                        ),
+                        retriever=st.session_state.retriever_general_summary,
                         language=st.session_state.assistant_language,
                         llm_provider="OpenAI",
-                        model_name="gpt-4o"
+                        model_name="gpt-4o",
+                        memory=memory  # Share memory
                     )
+
+                    st.session_state.chain_question_specific = custom_ConversationalRetrievalChain(
+                        llm=instantiate_LLM(
+                            LLM_provider="OpenAI",
+                            model_name="gpt-4o",
+                            api_key=openai_api_key,
+                            temperature=0.1
+                        ),
+                        condense_question_llm=instantiate_LLM(
+                            LLM_provider="OpenAI",
+                            model_name="gpt-4o",
+                            api_key=openai_api_key,
+                            temperature=0.1
+                        ),
+                        retriever=st.session_state.retriever_question_specific,
+                        language=st.session_state.assistant_language,
+                        llm_provider="OpenAI",
+                        model_name="gpt-4o",
+                        memory=memory  # Share memory
+                    )
+
+                    st.session_state.chain_summary_specific = custom_ConversationalRetrievalChain(
+                        llm=instantiate_LLM(
+                            LLM_provider="OpenAI",
+                            model_name="gpt-4o",
+                            api_key=openai_api_key,
+                            temperature=0.1
+                        ),
+                        condense_question_llm=instantiate_LLM(
+                            LLM_provider="OpenAI",
+                            model_name="gpt-4o",
+                            api_key=openai_api_key,
+                            temperature=0.1
+                        ),
+                        retriever=st.session_state.retriever_summary_specific,
+                        language=st.session_state.assistant_language,
+                        llm_provider="OpenAI",
+                        model_name="gpt-4o",
+                        memory=memory  # Share memory
+                    )
+
+
                     
                     # 9. Cclear chat_history
                     clear_chat_history()
