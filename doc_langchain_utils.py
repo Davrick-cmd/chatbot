@@ -96,7 +96,7 @@ def clean_tmpfiles(TMP_DIR):
         if error_message != "":
             st.warning(f"Errors: {error_message}")
 
-def create_memory(model_name=' gpt-4o',memory_max_token=None):
+def create_memory(model_name=' gpt-4o',memory_max_token=None, base_retriever_fetch_k=None, base_retriever_lambda_mult=None):
     """Creates a ConversationSummaryBufferMemory for  gpt-4o
     Creates a ConversationBufferMemory for the other models."""
     
@@ -122,31 +122,42 @@ def create_memory(model_name=' gpt-4o',memory_max_token=None):
 
 
 def answer_template(language="english"):
-    """Pass the standalone question along with the chat history and context (retrieved documents) to the `LLM` to get an answer."""
+    """Generate a prompt to pass the standalone question, question type, chat history, and context to the LLM for an accurate and detailed answer."""
     
-    template = f"""Answer the question at the end, using only the following context (delimited by <context></context>).
-Your answer must be in the language at the end. 
+    template = f"""
+You are an expert in answering questions about documents based on the provided context. Your role is to analyze the input and craft a professional, accurate, and contextually relevant response.
+
+Use only the following context (delimited by <context></context>) to formulate your answer. Do not include information that is not found in the context.
 
 <context>
 {{chat_history}}
-
-{{context}} 
+{{context}}
 </context>
 
+Question Type: {{question_type}}
 Question: {{question}}
 
-Language: {language}.
+Instructions:
+- **General Summary**: If the question type is "General Summary," provide a concise yet comprehensive high-level overview of the document content, ensuring all key details are covered.If a user is asking for detailed summary make sure to include more relavant details.
+- **Specific Summary**: If the question type is "Specific Summary," focus on summarizing the most relevant section or topic from the document, providing sufficient detail.
+- **Specific Question**: If the question type is "Specific Question," deliver a precise and exact answer to the query asked, based strictly on the context provided.
+- **General Question**: If the question type is "General Question," offer a broad understanding of the document's content while maintaining relevance and clarity feel free to include external resources.
+
+The response must be professional, detailed, and written in {language}. Avoid speculative or unsupported claims.
 """
     return template
+
     
 def _combine_documents(docs, document_prompt, document_separator="\n\n"):
+    print("Number of documents used:",len(docs))
     doc_strings = [format_document(doc, document_prompt) for doc in docs]
     
     return document_separator.join(doc_strings)
 
 def custom_ConversationalRetrievalChain(
-    llm,condense_question_llm,
+    llm, condense_question_llm,
     retriever,
+    memory,
     language="english",
     llm_provider="OpenAI",
     model_name='gpt-4o',
@@ -157,61 +168,27 @@ def custom_ConversationalRetrievalChain(
     # Step 1: Create a standalone_question chain
     ##############################################################
     
-    # 1. Create memory: ConversationSummaryBufferMemory for gpt-3.5, and ConversationBufferMemory for the other models
-    
-    memory = create_memory(model_name)
-    # memory = ConversationBufferMemory(memory_key="chat_history",output_key="answer", input_key="question",return_messages=True)
-    # 2. load memory using RunnableLambda. Retrieves the chat_history attribute using itemgetter.
+    # 1. Load memory using RunnableLambda. Retrieves the chat_history attribute using itemgetter.
     loaded_memory = RunnablePassthrough.assign(
         chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history"),
     )
-
-
-    # 3. Pass the follow-up question along with the chat history to the LLM, and parse the answer (standalone_question).
-
-    condense_question_prompt = PromptTemplate(
-        input_variables=['chat_history', 'question'], 
-        template = """Given the following conversation and a follow up question, 
-rephrase the follow up question to be a standalone question, in the same language as the follow up question.\n\n
-Chat History:\n{chat_history}\n
-Follow Up Input: {question}\n
-Standalone question:"""        
-)
-        
-    standalone_question_chain = {
-        "standalone_question": {
-            "question": lambda x: x["question"],
-            "chat_history": lambda x: get_buffer_string(x["chat_history"]),
-        }
-        | condense_question_prompt
-        | condense_question_llm
-        | StrOutputParser(),
-    }
-
-    
-    # 4. Combine load_memory and standalone_question_chain
-    chain_question = loaded_memory | standalone_question_chain
-
-    
-    ####################################################################################
-    #   Step 2: Retrieve documents, pass them to the LLM, and return the response.
-    ####################################################################################
 
     # 5. Retrieve relevant documents
     retrieved_documents = {
         "docs": itemgetter("standalone_question") | retriever,
         "question": lambda x: x["standalone_question"],
+        "question_type":itemgetter("question_type")
     }
     
     # 6. Get variables ['chat_history', 'context', 'question'] that will be passed to `answer_prompt`
-    
     DEFAULT_DOCUMENT_PROMPT = PromptTemplate.from_template(template="{page_content}")
     answer_prompt = ChatPromptTemplate.from_template(answer_template(language=language)) 
     # 3 variables are expected ['chat_history', 'context', 'question'] by the ChatPromptTemplate   
     answer_prompt_variables = {
-        "context": lambda x: _combine_documents(docs=x["docs"],document_prompt=DEFAULT_DOCUMENT_PROMPT),
+        "context": lambda x: _combine_documents(docs=x["docs"], document_prompt=DEFAULT_DOCUMENT_PROMPT),
         "question": itemgetter("question"),
-        "chat_history": itemgetter("chat_history") # get it from `loaded_memory` variable
+        "chat_history": itemgetter("chat_history"),
+        "question_type":itemgetter("question_type")  # get it from `loaded_memory` variable
     }
     
     # 7. Load memory, format `answer_prompt` with variables (context, question and chat_history) and pass the `answer_prompt to LLM.
@@ -220,20 +197,92 @@ Standalone question:"""
     chain_answer = {
         "answer": loaded_memory | answer_prompt_variables | answer_prompt | llm,
         # return only page_content and metadata 
-        "docs": lambda x: [Document(page_content=doc.page_content,metadata=doc.metadata) for doc in x["docs"]],
-        "standalone_question": lambda x:x["question"] # return standalone_question
+        "docs": lambda x: [Document(page_content=doc.page_content, metadata=doc.metadata) for doc in x["docs"]],
+        "standalone_question": lambda x: x["question"]  # return standalone_question
     }
 
-    # 8. Final chain
-    conversational_retriever_chain = chain_question | retrieved_documents | chain_answer
+    # 8. Final chain including loaded memory
+    conversational_retriever_chain = retrieved_documents | loaded_memory | chain_answer
 
     print("Conversational retriever chain created successfully!")
 
-    return conversational_retriever_chain,memory
+    return conversational_retriever_chain
 
 
+def create_standalone_question_and_type(prompt,llm):
+    """Create a standalone question and determine its type."""
+    ##############################################################
+    # Step 1: Create a standalone_question chain
+    ##############################################################
+    
+    # 1. Create memory: ConversationSummaryBufferMemory for gpt-3.5, and ConversationBufferMemory for the other models
+    
+    # Check if st.session_state.memory exists; if so, use it; otherwise, create a new memory instance
+    if hasattr(st.session_state, 'memory') and st.session_state.memory is not None:
+        memory = st.session_state.memory
+    else:
+        memory = create_memory('gpt-4o', base_retriever_fetch_k=None, base_retriever_lambda_mult=None)  # New MMR parameters
+    
+    # 2. Load memory using RunnableLambda. Retrieves the chat_history attribute using itemgetter.
+    loaded_memory = RunnablePassthrough.assign(
+        chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history"),
+    )
 
+    # 3. Pass the follow-up question along with the chat history to the LLM, and parse the answer (standalone_question).
+    condense_question_prompt = PromptTemplate(
+        input_variables=['chat_history', 'question'], 
+        template="""Given the following conversation and a follow up question, 
+    rephrase the follow up question to be a standalone question, in the same language as the follow up question.\n\n
+    Chat History:\n{chat_history}\n
+    Follow Up Input: {question}\n
+    Standalone question:"""        
+    )
+    
+    # New prompt to determine the question type
+    question_type_prompt = PromptTemplate(
+        input_variables=['standalone_question'],
+        template="""You are an expert in categorizing questions people ask about documents. 
+    Determine the type of the following question based on the definitions and examples provided:
 
+    Possible types and their definitions:
+    1. General_Summary: A high-level overview of the entire content. 
+    Example: "Summarize the document."
 
+    2. Specific_Summary: A summary of a specific section or topic within the content.
+    Example: "Summarize the section about market trends."
 
+    3. Specific_Question: A direct query requesting a particular piece of information.
+    Example: "What is the revenue for Q1?"
 
+    4. General_Question: A broad or open-ended query that requires understanding the content without targeting a specific fact.
+    Example: "What does this report talk about?"
+
+    Question: {standalone_question}
+    Type of question (only return one of the four types):"""
+    )
+        
+    standalone_question_chain = {
+        "standalone_question": {
+            "question": lambda x: x["question"],
+            "chat_history": lambda x: get_buffer_string(x["chat_history"]),
+        }
+        | condense_question_prompt
+        | llm
+        | StrOutputParser(),
+    }
+
+    # New chain to determine the question type
+    question_type_chain = {
+        "standalone_question": itemgetter("standalone_question"),
+        "question_type": {
+            "standalone_question": itemgetter("standalone_question")
+        } | question_type_prompt | llm | StrOutputParser(),
+    }
+    
+    # 4. Combine load_memory and standalone_question_chain
+    chain_question = loaded_memory | standalone_question_chain | question_type_chain
+
+    output= chain_question.invoke({"question": prompt})
+
+    print(output)
+    return output['standalone_question'],output['question_type']  # Return the output for further use

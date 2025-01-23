@@ -74,7 +74,7 @@ from langchain.schema import format_document
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 llm_4 = ChatOpenAI(model="gpt-4o", temperature=0.0)
-llm_tune01 = ChatOpenAI(model="ft:gpt-4o-2024-08-06:personal:analytics:AcTe4OFX",temperature=0.0)
+llm_tune01 = ChatOpenAI(model="ft:gpt-4o-2024-08-06:personal:v2025:Apbc3vPM",temperature=0.0)
 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 
 # role = st.session_state.get("role", "User")  # Default to "User" if role is not set

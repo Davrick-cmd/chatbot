@@ -16,7 +16,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 import streamlit as st
 
 from vector import create_vectorstore,retrieval_blocks
-from doc_langchain_utils import instantiate_LLM,custom_ConversationalRetrievalChain
+from doc_langchain_utils import instantiate_LLM,custom_ConversationalRetrievalChain,create_memory,create_standalone_question_and_type
 
 from dotenv import load_dotenv
 
@@ -27,7 +27,7 @@ load_dotenv()
 
 dict_welcome_message = {
     "english": "How can I assist you today?",
-    "french": "Comment puis-je vous aider aujourd’hui ?",
+    "french": "Comment puis-je vous aider aujourd'hui ?",
     "spanish": "¿Cómo puedo ayudarle hoy?",
     "german": "Wie kann ich Ihnen heute helfen?",
     "russian": "Чем я могу помочь вам сегодня?",
@@ -151,7 +151,7 @@ def sidebar_and_documentChooser():
 
     # Tabbed Pane: Create a new Vectorstore | Open a saved Vectorstore
     # Create tabs based on user role
-    if st.session_state.get("is_admin", False):  # Default to False if not set
+    if  st.session_state.get("is_admin", False):  # Default to False if not set
         tab_open_vectorstore,tab_new_vectorstore = st.tabs(["Select Document Store","Create Document Store" ])
     else:
         tab_open_vectorstore = st.tabs(["Select Vectorstore"])[0]
@@ -171,78 +171,156 @@ def sidebar_and_documentChooser():
             selected_store = st.selectbox(
                 label="Available Document Stores",
                 options=available_vectorstores,
-                label_visibility="collapsed"
+                placeholder="Select Document Store...",
+                label_visibility="collapsed",
+                index=None,
             )
 
             if st.button("Load Selected Document Store"):
                 with st.spinner("Loading Document Store..."):
                     st.session_state.selected_vectorstore_name = selected_store
                     try:
-                        st.session_state.retriever = retrieval_blocks(
+                        # Create memory once
+                        memory = create_memory('gpt-4o')
+                        st.session_state.memory = memory
+
+                        # Create retriever chains
+                        st.session_state.retriever_general_summary = retrieval_blocks(
+                            vectorstore_name=st.session_state.selected_vectorstore_name,
+                            embeddings=embeddings,
+                            retriever_type=st.session_state.retriever_type,
+                            base_retriever_search_type="mmr",
+                            base_retriever_k=80,  # Default value, will be overridden by _get_retrieval_params
+                            base_retriever_score_threshold=None,  # Default value, will be overridden
+                            base_retriever_fetch_k=None,  # New MMR parameter
+                            base_retriever_lambda_mult=None,  # New MMR parameter
+                            compression_retriever_k=80,
+                            cohere_api_key=st.session_state.cohere_api_key,
+                            cohere_model="rerank-multilingual-v2.0",
+                            cohere_top_n=80
+                        )
+                        
+                        st.session_state.retriever_question_specific = retrieval_blocks(
                             vectorstore_name=st.session_state.selected_vectorstore_name,
                             embeddings=embeddings,
                             retriever_type=st.session_state.retriever_type,
                             base_retriever_search_type="similarity",
-                            base_retriever_k=6,
+                            base_retriever_k=10,  # Default value, will be overridden by _get_retrieval_params
+                            base_retriever_score_threshold=None,  # Default value, will be overridden
                             compression_retriever_k=5,
                             cohere_api_key=st.session_state.cohere_api_key,
                             cohere_model="rerank-multilingual-v2.0",
-                            cohere_top_n=3,
+                            cohere_top_n=5,
+                        )
+
+                        st.session_state.retriever_summary_specific = retrieval_blocks(
+                            vectorstore_name=st.session_state.selected_vectorstore_name,
+                            embeddings=embeddings,
+                            retriever_type=st.session_state.retriever_type,
+                            base_retriever_search_type="similarity",
+                            base_retriever_k=30,  # Default value, will be overridden by _get_retrieval_params
+                            base_retriever_score_threshold=None,  # Default value, will be overridden
+                            compression_retriever_k=30,
+                            cohere_api_key=st.session_state.cohere_api_key,
+                            cohere_model="rerank-multilingual-v2.0",
+                            cohere_top_n=30,
                         )
                         
-                        # Create memory and ConversationalRetrievalChain
-                        (
-                            st.session_state.chain,
-                            st.session_state.memory,
-                        ) = custom_ConversationalRetrievalChain(
-                            llm = instantiate_LLM(
-                                LLM_provider="OpenAI",
-                                model_name="gpt-4o",
-                                api_key=openai_api_key,
-                                temperature=0.5
-                            ),
-                            condense_question_llm = instantiate_LLM(
+                        # Create three different chains sharing the same memory
+                        st.session_state.chain_general_summary = custom_ConversationalRetrievalChain(
+                            llm=instantiate_LLM(
                                 LLM_provider="OpenAI",
                                 model_name="gpt-4o",
                                 api_key=openai_api_key,
                                 temperature=0.1
-                            ), 
-                            retriever=st.session_state.retriever,
+                            ),
+                            condense_question_llm=instantiate_LLM(
+                                LLM_provider="OpenAI",
+                                model_name="gpt-4o",
+                                api_key=openai_api_key,
+                                temperature=0.1
+                            ),
+                            retriever=st.session_state.retriever_general_summary,
                             language=st.session_state.assistant_language,
                             llm_provider="OpenAI",
-                            model_name="gpt-4o"
+                            model_name="gpt-4o",
+                            memory=memory  # Share memory
                         )
-                        
+
+                        st.session_state.chain_question_specific = custom_ConversationalRetrievalChain(
+                            llm=instantiate_LLM(
+                                LLM_provider="OpenAI",
+                                model_name="gpt-4o",
+                                api_key=openai_api_key,
+                                temperature=0.1
+                            ),
+                            condense_question_llm=instantiate_LLM(
+                                LLM_provider="OpenAI",
+                                model_name="gpt-4o",
+                                api_key=openai_api_key,
+                                temperature=0.1
+                            ),
+                            retriever=st.session_state.retriever_question_specific,
+                            language=st.session_state.assistant_language,
+                            llm_provider="OpenAI",
+                            model_name="gpt-4o",
+                            memory=memory  # Share memory
+                        )
+
+                        st.session_state.chain_summary_specific = custom_ConversationalRetrievalChain(
+                            llm=instantiate_LLM(
+                                LLM_provider="OpenAI",
+                                model_name="gpt-4o",
+                                api_key=openai_api_key,
+                                temperature=0.1
+                            ),
+                            condense_question_llm=instantiate_LLM(
+                                LLM_provider="OpenAI",
+                                model_name="gpt-4o",
+                                api_key=openai_api_key,
+                                temperature=0.1
+                            ),
+                            retriever=st.session_state.retriever_summary_specific,
+                            language=st.session_state.assistant_language,
+                            llm_provider="OpenAI",
+                            model_name="gpt-4o",
+                            memory=memory  # Share memory
+                        )
+
                         clear_chat_history()
                         st.success(f"Successfully loaded Document Store: {selected_store}")
                     except Exception as e:
                         st.error(f"Error loading Document Store: {str(e)}")
-    with tab_new_vectorstore:
 
-        st.session_state.website = st.text_input(
-            label='search a site',
-            placeholder="Website Link"
-        )
 
-        # 1. Select documnets
-        st.session_state.uploaded_file_list = st.file_uploader(
-            label="**Select documents**",
-            accept_multiple_files=True,
-            type=(["pdf", "txt", "docx", "csv"]),
-        )
-        # 2. Process documents
-        st.session_state.vector_store_name = st.text_input(
-            label="**Documents will be loaded, embedded and ingested into a vectorstore (Chroma dB). Please provide a valid dB name.**",
-            placeholder="Documents name",
-        )
-        # 3. Add a button to process documnets and create a Chroma vectorstore
+    if  st.session_state.get("is_admin", False):
 
-        st.button("Create Document Store", on_click=create_vectorstore)
-        try:
-            if st.session_state.error_message != "":
-                st.warning(st.session_state.error_message)
-        except:
-            pass
+        with tab_new_vectorstore:
+
+            st.session_state.website = st.text_input(
+                label='search a site',
+                placeholder="Website Link"
+            )
+
+            # 1. Select documnets
+            st.session_state.uploaded_file_list = st.file_uploader(
+                label="**Select documents**",
+                accept_multiple_files=True,
+                type=(["pdf", "txt", "docx", "csv"]),
+            )
+            # 2. Process documents
+            st.session_state.vector_store_name = st.text_input(
+                label="**Documents will be loaded, embedded and ingested into a vectorstore (Chroma dB). Please provide a valid dB name.**",
+                placeholder="Documents name",
+            )
+            # 3. Add a button to process documnets and create a Chroma vectorstore
+
+            st.button("Create Document Store", on_click=create_vectorstore)
+            try:
+                if st.session_state.error_message != "":
+                    st.warning(st.session_state.error_message)
+            except:
+                pass
 
 
 def clear_chat_history():
@@ -261,23 +339,42 @@ def clear_chat_history():
         pass
 
 def get_response_from_LLM(prompt):
-    """invoke the LLM, get response, and display results (answer and source documents)."""
+    """Invoke the LLM, get response, and display results (answer and source documents)."""
     try:
-        # 1. Invoke LLM
-        response = st.session_state.chain.invoke({"question": prompt})
+        # 1. Create standalone question and determine its type
+        standalone_question, question_type = create_standalone_question_and_type(prompt,llm=instantiate_LLM(
+                                LLM_provider="OpenAI",
+                                model_name="gpt-4o",
+                                api_key=openai_api_key,
+                                temperature=0.1
+                            ))
+
+        # 2. Select the appropriate retrieval chain based on the question type
+        if question_type == "General_Summary":
+            retrieval_chain = st.session_state.chain_general_summary
+        elif question_type == "Specific_Summary":
+            retrieval_chain = st.session_state.chain_summary_specific
+        elif question_type == "Specific_Question":
+            retrieval_chain = st.session_state.chain_question_specific
+        else:
+            retrieval_chain = st.session_state.chain_question_specific
+
+        # 3. Invoke the selected retrieval chain
+        response = retrieval_chain.invoke({'standalone_question': standalone_question,"question_type":question_type})
+
         answer = response["answer"].content
         st.session_state.memory.save_context({"question": prompt}, {"answer": answer})  # update memory
         
-        # 2. Display results
+        # 4. Display results
         st.session_state.docmessages.append({"role": "user", "content": prompt})
         st.session_state.docmessages.append({"role": "assistant", "content": answer})
         
-        st.chat_message("user", avatar=str(USER_AVATAR)).write(prompt)
+        # st.chat_message("user", avatar=str(USER_AVATAR)).write(prompt)
         with st.chat_message("assistant", avatar=str(BOT_AVATAR)):
-            # 2.1. Display anwser:
+            # 4.1. Display answer:
             st.markdown(answer)
 
-            # 2.2. Display source documents:
+            # 4.2. Display source documents:
             with st.expander("**Source documents**"):
                 documents_content = ""
                 for document in response['docs']:
@@ -287,7 +384,6 @@ def get_response_from_LLM(prompt):
                         page = ""
                     documents_content += (
                         "**Source: "
-                        # + str(document.metadata["source"])
                         + page
                         + "**\n\n"
                     )
@@ -296,7 +392,6 @@ def get_response_from_LLM(prompt):
                     )
 
                 st.markdown(documents_content)
-  
 
     except Exception as e:
         st.warning(e)
@@ -370,7 +465,9 @@ def chatbot():
                 f"Please insert your {st.session_state.LLM_provider} API key to continue."
             )
             st.stop()
-        with st.spinner("Running..."):
+        st.chat_message("user", avatar=str(USER_AVATAR)).write(prompt)
+        with st.spinner("Generating response..."):
+
             get_response_from_LLM(prompt=prompt)
 
 if __name__ == "__main__":
