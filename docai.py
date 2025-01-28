@@ -457,7 +457,7 @@ def chatbot():
     if not st.session_state.get("selected_vectorstore_name") or st.session_state.get("selected_vectorstore_name") is None:
         st.chat_input(placeholder="Please select a Document Store first...", disabled=True)
     elif prompt := st.chat_input(f"Hi {st.session_state.get('firstname', 'there')}, "
-        f"what questions can I answer today related to {st.session_state.get("selected_vectorstore_name")}?"):
+        f"what questions can I answer today related to?"):
         if (
             not st.session_state.openai_api_key
         ):
