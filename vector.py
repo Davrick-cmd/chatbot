@@ -63,12 +63,6 @@ from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 import streamlit as st
 
 from doc_langchain_utils import instantiate_LLM, custom_ConversationalRetrievalChain,create_memory
-from urllib.parse import urljoin, urlparse
-from langchain_community.vectorstores.utils import filter_complex_metadata
-
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
 import re
 from langchain.schema import Document
 

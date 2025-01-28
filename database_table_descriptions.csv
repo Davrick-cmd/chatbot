@@ -1,6 +1,0 @@
-Table,Description
-ChatbotAccounts,"Stores information about the bank accounts that exist within the bank, including a unique account number(ACCOUNT_NUMBER), CATEGORY (saving, current,etc),transaction dates, CUSTOMER NUMBER,OPENING DATES AND MORE."
-BOT_CUSTOMER,"Contains details of each customer of the bank, including CUSTOMER_NO(CUSTOMER NUMBER), names, type of customer, joining date, birth date and more demographic features.."
-BOT_FUNDS_TRANSFER,"This table captures detailed records of customer transactions made through digital channels. Each entry represents an individual transaction, including information about the customer, transaction type, and financial details."
-ChatbotAccounts_og,"Stores information about the bank accounts that exist within the bank, including a unique account number(ACCOUNT_NUMBER), CATEGORY (saving, current,etc),transaction dates, CUSTOMER NUMBER,OPENING DATES AND MORE."
-BOT_CUSTOMER_2,"Contains details of each customer of the bank, including CUSTOMER_NO(CUSTOMER NUMBER), names, type of customer, joining date, birth date and more demographic features.."
