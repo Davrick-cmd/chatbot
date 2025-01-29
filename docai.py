@@ -146,7 +146,7 @@ def sidebar_and_documentChooser():
             options=retrievers, 
             index=0  # Set the default index to the first element
         )
-                st.write("")
+        st.write("")
         st.write("\n\n")
 
     # Tabbed Pane: Create a new Vectorstore | Open a saved Vectorstore
