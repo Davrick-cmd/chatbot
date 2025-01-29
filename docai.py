@@ -41,9 +41,7 @@ dict_welcome_message = {
 
 
 list_retriever_types = [
-    "Cohere reranker",
-    "Contextual compression",
-    "Vectorstore backed retriever",
+    "Contextual compression"
 ]
 
 ASSETS_DIR = Path("img")
