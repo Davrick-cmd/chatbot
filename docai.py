@@ -48,7 +48,7 @@ list_retriever_types = [
 
 ASSETS_DIR = Path("img")
 USER_AVATAR = ASSETS_DIR / "user-icon.png"
-BOT_AVATAR = ASSETS_DIR / "bkofkgl.png"
+BOT_AVATAR = ASSETS_DIR / "chatgpt-icon.png"
 
 TMP_DIR = Path(__file__).resolve().parent.joinpath("data", "tmp")
 LOCAL_VECTOR_STORE_DIR = (
