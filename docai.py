@@ -41,7 +41,7 @@ dict_welcome_message = {
 
 
 list_retriever_types = [
-    "Contextual compression"
+    "Contextual compression","None"
 ]
 
 ASSETS_DIR = Path("img")
@@ -142,9 +142,11 @@ def sidebar_and_documentChooser():
             retrievers = list_retriever_types[:-1]
 
         st.session_state.retriever_type = st.selectbox(
-            f"Select retriever type", retrievers
+            "Select retriever type", 
+            options=retrievers, 
+            index=0  # Set the default index to the first element
         )
-        st.write("")
+                st.write("")
         st.write("\n\n")
 
     # Tabbed Pane: Create a new Vectorstore | Open a saved Vectorstore
