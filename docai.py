@@ -115,7 +115,7 @@ def sidebar_and_documentChooser():
         # st.caption("🚀 Welcome to the Bank of Kigali Ask Doc AI System!,an intelligent system to answer questions related to your documents")
 
         st.write("")
-        st.button("Clear Chat History", on_click=clear_chat_history)
+        
 
 
 
@@ -150,6 +150,10 @@ def sidebar_and_documentChooser():
         )
         st.write("")
         st.write("\n\n")
+        
+        st.divider()
+
+        st.button("Clear Chat History", on_click=clear_chat_history)
 
     # Tabbed Pane: Create a new Vectorstore | Open a saved Vectorstore
     # Create tabs based on user role
