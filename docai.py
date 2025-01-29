@@ -22,6 +22,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+st.set_page_config(
+    layout="wide",
+    page_title="Document AI",
+    page_icon="./img/ai1.jpg",
+    menu_items = {
+        'About': """
+        #### Welcome to the Document App
+        """
+    }
+)
+
 
 
 
