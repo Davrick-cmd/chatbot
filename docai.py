@@ -136,7 +136,7 @@ def sidebar_and_documentChooser():
         )
 
         st.divider()
-        st.subheader("Retrievers")
+        
         retrievers = list_retriever_types
         if st.session_state.selected_model == "gpt-4o":
             # for " gpt-4o", we will not use the vectorstore backed retriever
@@ -144,7 +144,7 @@ def sidebar_and_documentChooser():
             retrievers = list_retriever_types[:-1]
 
         st.session_state.retriever_type = st.selectbox(
-            "Select retriever type", 
+            "Retrievers", 
             options=retrievers, 
             index=0  # Set the default index to the first element
         )
