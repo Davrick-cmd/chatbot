@@ -47,6 +47,7 @@ list_retriever_types = [
 ASSETS_DIR = Path("img")
 USER_AVATAR = ASSETS_DIR / "user-icon.png"
 BOT_AVATAR = ASSETS_DIR / "chatgpt-icon.png"
+LOGO = ASSETS_DIR / "chatbot_logo.jpg"
 
 TMP_DIR = Path(__file__).resolve().parent.joinpath("data", "tmp")
 LOCAL_VECTOR_STORE_DIR = (
@@ -110,6 +111,7 @@ def sidebar_and_documentChooser():
     the second contains a vectorstore chooser (open an old vectorstore)."""
 
     with st.sidebar:
+        st.image(str(LOGO), use_column_width=True)
         # st.caption("🚀 Welcome to the Bank of Kigali Ask Doc AI System!,an intelligent system to answer questions related to your documents")
 
         st.write("")
