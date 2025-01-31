@@ -24,7 +24,7 @@ load_dotenv()
 
 st.set_page_config(
     layout="wide",
-    page_title="Document AI",
+    page_title="Documents AI",
     page_icon="./img/ai1.jpg",
     menu_items = {
         'About': """
