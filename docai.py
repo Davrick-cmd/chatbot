@@ -168,7 +168,7 @@ def sidebar_and_documentChooser():
 
     # Tabbed Pane: Create a new Vectorstore | Open a saved Vectorstore
     # Create tabs based on user role
-    if  st.session_state.get("is_admin", False):  # Default to False if not set
+    if not  st.session_state.get("is_admin", False):  # Default to False if not set
         tab_open_vectorstore,tab_new_vectorstore = st.tabs(["Select Document Store","Create Document Store" ])
     else:
         tab_open_vectorstore = st.tabs(["Select Vectorstore"])[0]
