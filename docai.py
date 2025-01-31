@@ -310,7 +310,7 @@ def sidebar_and_documentChooser():
                         st.error(f"Error loading Document Store: {str(e)}")
 
 
-    if  st.session_state.get("is_admin", False):
+    if not  st.session_state.get("is_admin", False):
 
         with tab_new_vectorstore:
 
